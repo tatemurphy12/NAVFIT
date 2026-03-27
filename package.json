@@ -1,0 +1,20 @@
+{
+  "name": "navfit26-master",
+  "version": "1.0.0",
+  "description": "NAVFIT26 Master Launcher",
+  "main": "electron2.1/main.js",
+  "scripts": {
+    "install-all": "npm install --prefix frontend2.1 && npm install --prefix backend2.1 && npm install --prefix electron2.1",
+    "build-ui": "npm run build --prefix frontend2.1",
+    "build-backend": "npm run build --prefix backend2.1",
+    "start": "npm run build-ui && npm run build-backend && cd electron2.1 && npm start",
+    "dist:linux": "npm run build-ui && npm run build-backend && npm run build:linux --prefix electron2.1",
+    "dist:win": "npm run build-ui && npm run build-backend && npm run build:win --prefix electron2.1",
+    "clean": "node -e \"const fs=require('fs'); ['frontend2.1/dist', 'electron2.1/frontend_build', 'electron2.1/backend_src', 'frontend2.1/node_modules', 'backend2.1/node_modules', 'electron2.1/node_modules'].forEach(p => { if(fs.existsSync(p)) fs.rmSync(p, {recursive:true, force:true}) })\""
+  },
+  "author": "Tate Murphy <jtatemurphy@gmail.com>",
+  "license": "ISC",
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
+  }
+}
