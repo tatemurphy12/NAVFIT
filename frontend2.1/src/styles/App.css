@@ -1,0 +1,100 @@
+/* 1. MASTER VARIABLES */
+:root {
+  --fitrep-master-size: 10px; 
+  --navy-font: "Courier New", Courier, monospace;
+  --error-red: #ff0000;
+  --error-bg: #fff0f0;
+}
+
+/* 2. THE MASTER FONT RULE (Sizing only, no color here) */
+.navfit-paper label,
+.navfit-paper span,
+.navfit-paper .error-note,
+.navfit-paper .date-label {
+  font-family: var(--navy-font) !important;
+  font-size: var(--fitrep-master-size) !important;
+  line-height: 1.2;
+  /* Removed 'color: black !important' from here */
+}
+
+/* Default color for standard text */
+.navfit-paper label,
+.navfit-paper span,
+.navfit-paper .date-label {
+  color: black;
+}
+
+/* 3. INPUTS & TEXTAREAS */
+.navfit-paper input, 
+.navfit-paper select, 
+.navfit-paper textarea,
+.navfit-textarea {
+  font-family: var(--navy-font) !important;
+  font-size: var(--fitrep-master-size); 
+  font-weight: bold;
+  text-transform: uppercase;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  color: black; /* User typing stays black */
+}
+
+/* 4. THE GRID (Unchanged) */
+.navfit-paper {
+  width: 95%;
+  max-width: 950px;
+  margin: 20px auto;
+  padding: 15px;
+  background: white;
+  border: 1px solid black;
+  display: flex;
+  flex-direction: column;
+}
+
+.navfit-row {
+  display: flex;
+  width: 100%;
+  border-bottom: 1px solid black;
+}
+
+.navfit-cell {
+  border-right: 1px solid black;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  position: relative; 
+  min-height: 45px;
+  flex: 1;
+}
+
+.navfit-cell:last-child {
+  border-right: none;
+}
+
+/* 5. ERROR STATES - Now with Forced Red */
+.navfit-paper .navfit-cell.input-error {
+  background-color: var(--error-bg) !important;
+}
+
+.error-note {
+  color: var(--error-red) !important; /* !important ensures it beats Section 2 */
+  font-weight: bold;
+  margin-top: 2px;
+  display: block;
+}
+
+/* 6. SQUARE RADIO BUTTONS (Unchanged) */
+input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border: 1px solid black;
+  border-radius: 0;
+  cursor: pointer;
+}
+input[type="radio"]:checked { background-color: #000; }
