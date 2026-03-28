@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import validators from '../utils/formatters'; // Import the toolbox
 
-export default function useFitrep(activeSqliteDb) {
+export default function useFitrep(dbPath) {
     const initialFormState = {
         name: '', grade: '', desig: '', ssn: '', dutyStatus: '',
         uic: '', station: '', promo: '', dateRep: '', occasion: '',
@@ -64,47 +64,71 @@ export default function useFitrep(activeSqliteDb) {
         return (sum / validScores.length).toFixed(2);
     };
 
-    const handleSaveFitrep = async () => {
+    const handleSaveFitrep = async (reportId, setCurrentReportId) => {
+        // 1. Basic Validation
+        if (!dbPath) {
+            return triggerNotification("Error", "No database selected! Please open a database from the home screen.", true);
+        }
         if (!formData.name || !formData.uic) {
             return triggerNotification("Missing Info", "Name and UIC are required to save.", true);
         }
 
-        // Map to strict NAVFIT98 SQLite Schema
-        // --- Inside handleSaveFitrep in useFitrep.js ---
+        // 2. Parse the Full Name into components (e.g. "DOE, JOHN A JR")
+        let lastName = "", firstName = "", mi = "", suffix = "";
+        if (formData.name) {
+            const parts = formData.name.split(',');
+            lastName = (parts[0] || '').trim();
+            const rest = (parts[1] || '').trim().split(' ');
+            firstName = rest[0] || '';
+            mi = rest[1] || '';
+            suffix = rest[2] || '';
+        }
+
+        // 3. Helper to convert Promotion text to Integer
+        const promoRecToInt = (val) => {
+            const map = { 'NOB': 0, 'Significant Problems': 1, 'Progressing': 2, 'Promotable': 3, 'Must Promote': 4, 'Early Promote': 5 };
+            return map[val] ?? null;
+        };
+
+        // 4. Map to strict NAVFIT98 SQLite Schema
         const mappedData = {
-            ReportType: formData.reportType || "FitRep",
+            ReportType: formData.reportType || "Regular",
             FullName: formData.name || "",
-            FirstName: formData.firstName || "", // Added to match schema
-            MI: formData.mi || "",               // Added to match schema
-            LastName: formData.lastName || "",   // Added to match schema
-            Suffix: formData.suffix || "",       // Added to match schema
+            FirstName: firstName, 
+            MI: mi,              
+            LastName: lastName,  
+            Suffix: suffix,      
             Rate: formData.grade || "",
             Desig: formData.desig || "",
             SSN: formData.ssn ? formData.ssn.replace(/-/g, '') : "",
             UIC: formData.uic || "",
             ShipStation: formData.station || "",
             PromotionStatus: formData.promo || "",
-            BilletSubcat: formData.billetSubcat || "",
+            BilletSubcat: formData.billetSub || "", // Fixed mismatch
+            PhysicalReadiness: formData.physicalRead || "",
             
-            // Dates - Ensure these are either NULL or valid timestamps
+            // Dates
             DateReported: formData.dateRep || null,
             FromDate: formData.fromPeriod || null,
             ToDate: formData.toPeriod || null,
             DateCounseled: formData.dateCounseled || "",
+            Counseler: formData.counselor || "",
 
-            // Booleans - NAVFIT98 prefers 1/0 for SQLite compatibility
-            Active: 1, // Forced to 1 for visibility
-            TAR: formData.dutyStatus === 'TAR' ? 1 : 0,
-            Inactive: 0,
-            ATADSW: 0,
+            // Booleans (1/0)
+            Active: formData.dutyStatus === 'ACT' ? 1 : 0, 
+            TAR: formData.dutyStatus === 'FTS' ? 1 : 0, // Fixed mismatch
+            Inactive: formData.dutyStatus === 'INACT' ? 1 : 0,
+            ATADSW: formData.dutyStatus === 'AT/ADSW/' ? 1 : 0,
+
             Periodic: formData.occasion === 'Periodic' ? 1 : 0,
-            DetInd: 0,
-            Frocking: 0,
-            Special: 0,
-            NOB: formData.notObserved ? 1 : 0,
-            Regular: 1, 
-            Concurrent: 0,
-            OpsCdr: 0,
+            DetInd: formData.occasion === 'Detachment of Individual' ? 1 : 0,
+            Frocking: formData.occasion === 'Detachment of Reporting Senior' ? 1 : 0, 
+            Special: formData.occasion === 'Special' ? 1 : 0,
+
+            NOB: formData.notObserved === 'Not Observed Report' ? 1 : 0,
+            Regular: formData.reportType === 'Regular' ? 1 : 0, 
+            Concurrent: formData.reportType === 'Concurrent' ? 1 : 0,
+            OpsCdr: formData.reportType === 'Ops Cdr' ? 1 : 0,
 
             // Reporting Senior Info
             ReportingSenior: formData.reportSenior || "",
@@ -115,16 +139,16 @@ export default function useFitrep(activeSqliteDb) {
             RSSSN: formData.reportSSN ? formData.reportSSN.replace(/-/g, '') : "",
             RSAddress: formData.seniorAddress || "",
 
-            // Trait Scores & QUAL
+            // Trait Scores
             PROF: formData.proExpert ? parseInt(formData.proExpert, 10) : 0,
-            QUAL: formData.professionalism ? parseInt(formData.professionalism, 10) : 0, // Added QUAL
+            QUAL: 0, // Not used on W2-O6 forms
             EO: formData.cmeo ? parseInt(formData.cmeo, 10) : 0,
             MIL: formData.bearing ? parseInt(formData.bearing, 10) : 0,
-            PA: 0, // Performance Assessment placeholder
+            PA: 0, 
             TEAM: formData.teamwork ? parseInt(formData.teamwork, 10) : 0,
             LEAD: formData.leadership ? parseInt(formData.leadership, 10) : 0,
             MIS: formData.missAccomp ? parseInt(formData.missAccomp, 10) : 0,
-            TAC: formData.tactPerform !== "NOB" ? parseInt(formData.tactPerform, 10) : 0,
+            TAC: formData.tactPerform !== "NOB" && formData.tactPerform ? parseInt(formData.tactPerform, 10) : 0,
 
             // Other
             Achievements: formData.cmdEmployAch || "",
@@ -133,17 +157,41 @@ export default function useFitrep(activeSqliteDb) {
             Comments: formData.comments || "",
             RecommendA: formData.milestoneOne || "",
             RecommendB: formData.milestoneTwo || "",
-            PromotionRecom: formData.promotion ? parseInt(formData.promotion, 10) : 0
+
+            SummarySP: formData.sumPromo?.sigProb || "",
+            SummaryProg: formData.sumPromo?.prog || "",
+            SummaryProm: formData.sumPromo?.promotable || "",
+            SummaryMP: formData.sumPromo?.mustPromote || "",
+            SummaryEP: formData.sumPromo?.earlyPromote || "",
+
+            PromotionRecom: promoRecToInt(formData.promotion) // Converted to Integer
         };
 
         try {
-            const result = await window.api.saveFitrep(mappedData, activeSqliteDb);
+            // 5. Build the new payload structure
+            const payload = {
+                data: mappedData,
+                dbPath: dbPath,
+                reportId: reportId
+            };
+
+            // 6. Send to the updated backend endpoint
+            const result = await window.api.saveFitrep(payload);
+            
             if (result.success) {
                 triggerNotification("Success", "Report saved to database!", false);
                 setIsSaved(true);
                 setHasUnsavedChanges(false);
-                setSelectedReport(mappedData); // Cache for PDF logic
-                // No resetForm() here!
+                
+                // If this was a new report, capture the ID so subsequent clicks UPDATE instead of duplicating
+                if (!reportId && result.reportId) {
+                    setCurrentReportId(result.reportId);
+                }
+                
+                // Note: Ensure setSelectedReport doesn't break if you removed it from your hook
+                if (typeof setSelectedReport === 'function') {
+                    setSelectedReport(mappedData); 
+                }
             } else {
                 triggerNotification("Error", result.error, true);
             }
@@ -168,32 +216,46 @@ export default function useFitrep(activeSqliteDb) {
     };
 
     const handleACCDBExport = async () => {
-        triggerNotification("Processing", "Generating ACCDB... this may take a moment.", false);
-        const result = await window.api.exportACCDB();
-        if (result.success) {
-            triggerNotification("Success", `ACCDB file exported successfully!`, false);
-        } else {
-            if (result.error && result.error.includes("cancelled")) {
-                setShowModal(false);
-            } else {
-                triggerNotification("Error", result.error || "Failed to generate ACCDB.", true);
-            }
-        }
-    };
+    if (!dbPath) {
+        return triggerNotification("Error", "No database selected.", true);
+    }
+    
+    // Optional: Auto-save before exporting to ensure the ACCDB has the latest data
+    if (hasUnsavedChanges) {
+        triggerNotification("Info", "Saving changes before export...", false);
+        // Assuming currentReportId is accessible, or you might need to prompt the user to save first.
+    }
 
-    const handleSQLiteExport = async () => {
-        triggerNotification("Processing", "Generating SQLite... this may take a moment.", false);
-        const result = await window.api.exportSQLite();
-        if (result.success) {
-            triggerNotification("Success", `SQLite file exported successfully!`, false);
-        } else {
-            if (result.error && result.error.includes("cancelled")) {
-                setShowModal(false);
-            } else {
-                triggerNotification("Error", result.error || "Failed to generate SQLite.", true);
-            }
+    try {
+        // Pass the dbPath to the backend handler
+        const response = await window.api.exportACCDB(dbPath);
+        if (response.success) {
+            triggerNotification('Success', `ACCDB Exported successfully to:\n${response.path}`, false);
+        } else if (response.error !== "ACCDB Export cancelled.") {
+            triggerNotification('Error', `Failed to export ACCDB: ${response.error}`, true);
         }
-    };
+    } catch (error) {
+        triggerNotification('Error', 'An unexpected error occurred during ACCDB export.', true);
+    }
+  };
+
+  const handleSQLiteExport = async () => {
+    if (!dbPath) {
+        return triggerNotification("Error", "No database selected.", true);
+    }
+
+    try {
+        // We use the new exportDb handler we created in Step 1!
+        const response = await window.api.exportDb(dbPath);
+        if (response.success) {
+            triggerNotification('Success', `SQLite copy saved successfully to:\n${response.path}`, false);
+        } else if (response.message !== "Export cancelled") {
+            triggerNotification('Error', `Failed to export SQLite: ${response.message}`, true);
+        }
+    } catch (error) {
+        triggerNotification('Error', 'An unexpected error occurred during SQLite export.', true);
+    }
+  };
 
     const getError = (field) => {
         if (validators[field]) {
@@ -204,7 +266,7 @@ export default function useFitrep(activeSqliteDb) {
       };
 
     return {
-        formData, message, setMessage, showModal, setShowModal, modalContent,
+        formData, setFormData, message, setMessage, showModal, setShowModal, modalContent,
         handleChange, handlePDFExport, calculateTraitAverage, handleSaveFitrep,
         handleACCDBExport, handleSQLiteExport, isSaved, hasUnsavedChanges, getError
     };

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
@@ -21,8 +21,6 @@ const PdfFiller = IS_PROD
     : require('../backend2.1/src/PdfFiller');
 
 // --- 1. CONFIGURATION & PATHS ---
-
-
 // Java Paths
 
 // Detect if running on Windows
@@ -62,6 +60,23 @@ const OUTWARD_DIR = IS_PROD
         fs.mkdirSync(dir, { recursive: true });
     }
 });
+// --- NEW: HOMEPAGE DATABASE TRACKING ---
+const DATABASES_LIST_PATH = path.join(app.getPath('userData'), 'databases.json');
+
+function getDatabasesList() {
+    if (!fs.existsSync(DATABASES_LIST_PATH)) {
+        return [];
+    }
+    try {
+        return JSON.parse(fs.readFileSync(DATABASES_LIST_PATH, 'utf-8'));
+    } catch (err) {
+        return [];
+    }
+}
+
+function saveDatabasesList(list) {
+    fs.writeFileSync(DATABASES_LIST_PATH, JSON.stringify(list));
+}
 
 // 4. DEFAULTS MAPPING
 const DEFAULTS = {
@@ -127,70 +142,122 @@ async function runReportLogic(inputData, pdfOutPath) {
     return finalPdfPath;
 }
 
-// --- 4. IPC HANDLERS (The Listeners) ---
-ipcMain.handle('save-fitrep', async (e, data) => {
+// --- DATABASE RECORD HANDLERS (READ / WRITE / DELETE) ---
+
+
+ipcMain.handle('save-fitrep', async (e, payload) => {
+    const { data, dbPath, reportId } = payload;
+    const targetDb = dbPath || DEFAULTS.SQLITE;
+
     try {
-        const dbDir = path.dirname(DEFAULTS.SQLITE);
-        if (!fs.existsSync(dbDir)) {
-            fs.mkdirSync(dbDir, { recursive: true });
-        }
-        if (!fs.existsSync(DEFAULTS.SQLITE)) {
-            const SQLITE_TEMPLATE = IS_PROD
-                ? path.join(process.resourcesPath, 'templates', 'database_template.db')
-                : path.join(BASE_DIR, 'templates', 'database_template.db');
-            
-            // Double-check the template actually packaged correctly
-            if (!fs.existsSync(SQLITE_TEMPLATE)) {
-                throw new Error(`CRITICAL: Template DB missing at ${SQLITE_TEMPLATE}`);
-            }
-            
-            fs.copyFileSync(SQLITE_TEMPLATE, DEFAULTS.SQLITE);
-            console.log("Successfully seeded working database from template.");
+        const db = new Database(targetDb);
+        
+        // Ensure the Folders table has a Root entry (Required for legacy NAVFIT compatibility)
+        const rootExists = db.prepare("SELECT FolderID FROM [Folders] WHERE FolderID = 1").get();
+        if (!rootExists) {
+            db.prepare(`INSERT INTO [Folders] (FolderName, FolderID, Parent, Active) VALUES (?, ?, ?, ?)`).run('Root', 1, 0, 1);
         }
 
-        const db = new Database(DEFAULTS.SQLITE);
-        
-        // 1. Wipe all data to prevent folder/report duplication
-        db.exec("DELETE FROM [Reports]; DELETE FROM [Folders]; DELETE FROM [Summary];");
-
-        // 2. Create the "Root" container (FolderID 1)
-        // NAVFIT98 requires this as the anchor for the navigation tree
-        db.prepare(`
-            INSERT INTO [Folders] (FolderName, FolderID, Parent, Active)
-            VALUES (?, ?, ?, ?)
-        `).run('Root', 1, 0, 1);
-
-        // 3. Insert the Report directly into the Reports Table
-        // We link to 'a 1' which NAVFIT uses to display reports at the root level
-        const reportStmt = db.prepare(`
-            INSERT INTO [Reports] (
-                Parent, ReportType, FullName, FirstName, MI, LastName, Suffix,
-                Rate, Desig, SSN, Active, TAR, Inactive, ATADSW, UIC, ShipStation, 
-                PromotionStatus, DateReported, Periodic, DetInd, Frocking, Special, 
-                FromDate, ToDate, NOB, Regular, Concurrent, OpsCdr, 
-                ReportingSenior, RSGrade, RSDesig, RSTitle, RSUIC, RSSSN, RSAddress,
-                Achievements, PrimaryDuty, Duties, DateCounseled, 
-                PROF, QUAL, EO, MIL, PA, TEAM, LEAD, MIS, TAC,
-                RecommendA, RecommendB, Comments, PromotionRecom
-            ) VALUES (
-                'a 1', -- Virtual link to the Root structure
-                @ReportType, @FullName, @FirstName, @MI, @LastName, @Suffix,
-                @Rate, @Desig, @SSN, 1, @TAR, @Inactive, @ATADSW, @UIC, @ShipStation,
-                @PromotionStatus, @DateReported, @Periodic, @DetInd, @Frocking, @Special,
-                @FromDate, @ToDate, @NOB, @Regular, @Concurrent, @OpsCdr,
-                @ReportingSenior, @RSGrade, @RSDesig, @RSTitle, @RSUIC, @RSSSN, @RSAddress,
-                @Achievements, @PrimaryDuty, @Duties, @DateCounseled,
-                @PROF, @QUAL, @EO, @MIL, @PA, @TEAM, @LEAD, @MIS, @TAC,
-                @RecommendA, @RecommendB, @Comments, @PromotionRecom
-            )
-        `);
-        
-        reportStmt.run(data);
-        db.close();
-        return { success: true };
+        if (!reportId) {
+            // -- ADD NEW REPORT (INSERT) --
+            const reportStmt = db.prepare(`
+                INSERT INTO [Reports] (
+                    Parent, ReportType, FullName, FirstName, MI, LastName, Suffix,
+                    Rate, Desig, SSN, Active, TAR, Inactive, ATADSW, UIC, ShipStation, 
+                    PromotionStatus, DateReported, Periodic, DetInd, Frocking, Special, 
+                    FromDate, ToDate, NOB, Regular, Concurrent, OpsCdr, 
+                    ReportingSenior, RSGrade, RSDesig, RSTitle, RSUIC, RSSSN, RSAddress,
+                    Achievements, PrimaryDuty, Duties, DateCounseled, 
+                    PROF, QUAL, EO, MIL, PA, TEAM, LEAD, MIS, TAC,
+                    RecommendA, RecommendB, Comments, PromotionRecom
+                ) VALUES (
+                    'a 1', @ReportType, @FullName, @FirstName, @MI, @LastName, @Suffix,
+                    @Rate, @Desig, @SSN, @Active, @TAR, @Inactive, @ATADSW, @UIC, @ShipStation,
+                    @PromotionStatus, @DateReported, @Periodic, @DetInd, @Frocking, @Special,
+                    @FromDate, @ToDate, @NOB, @Regular, @Concurrent, @OpsCdr,
+                    @ReportingSenior, @RSGrade, @RSDesig, @RSTitle, @RSUIC, @RSSSN, @RSAddress,
+                    @Achievements, @PrimaryDuty, @Duties, @DateCounseled,
+                    @PROF, @QUAL, @EO, @MIL, @PA, @TEAM, @LEAD, @MIS, @TAC,
+                    @RecommendA, @RecommendB, @Comments, @PromotionRecom
+                )
+            `);
+            const result = reportStmt.run(data);
+            db.close();
+            return { success: true, reportId: result.lastInsertRowid };
+        } else {
+            // -- EDIT EXISTING REPORT (UPDATE) --
+            data.ReportID = reportId;
+            const updateStmt = db.prepare(`
+                UPDATE [Reports] SET 
+                    ReportType=@ReportType, FullName=@FullName, FirstName=@FirstName, MI=@MI, LastName=@LastName, Suffix=@Suffix,
+                    Rate=@Rate, Desig=@Desig, SSN=@SSN, Active=@Active, TAR=@TAR, Inactive=@Inactive, ATADSW=@ATADSW, UIC=@UIC, ShipStation=@ShipStation, 
+                    PromotionStatus=@PromotionStatus, DateReported=@DateReported, Periodic=@Periodic, DetInd=@DetInd, Frocking=@Frocking, Special=@Special, 
+                    FromDate=@FromDate, ToDate=@ToDate, NOB=@NOB, Regular=@Regular, Concurrent=@Concurrent, OpsCdr=@OpsCdr, 
+                    ReportingSenior=@ReportingSenior, RSGrade=@RSGrade, RSDesig=@RSDesig, RSTitle=@RSTitle, RSUIC=@RSUIC, RSSSN=@RSSSN, RSAddress=@RSAddress,
+                    Achievements=@Achievements, PrimaryDuty=@PrimaryDuty, Duties=@Duties, DateCounseled=@DateCounseled, 
+                    PROF=@PROF, QUAL=@QUAL, EO=@EO, MIL=@MIL, PA=@PA, TEAM=@TEAM, LEAD=@LEAD, MIS=@MIS, TAC=@TAC,
+                    RecommendA=@RecommendA, RecommendB=@RecommendB, Comments=@Comments, PromotionRecom=@PromotionRecom
+                WHERE ReportID = @ReportID
+            `);
+            updateStmt.run(data);
+            db.close();
+            return { success: true };
+        }
     } catch (err) { 
         console.error("Save Error:", err);
         return { success: false, error: err.message }; 
+    }
+});
+
+// Load all reports to display in the Homepage Table
+ipcMain.handle('loadFitreps', async (event, dbPath) => {
+    try {
+        if (!fs.existsSync(dbPath)) return { error: "File not found" }; // Changed this line
+        const db = new Database(dbPath, { readonly: true });
+        const rows = db.prepare(`SELECT rowid as ReportID, FullName, Rate FROM [Reports] ORDER BY rowid DESC`).all();
+        db.close();
+        return rows;
+    } catch (err) {
+        return { error: err.message };
+    }
+});
+
+ipcMain.handle('removeDatabase', async (event, dbPath) => {
+    try {
+        let list = getDatabasesList();
+        // Filter out the database that matches the provided path
+        list = list.filter(db => db.path !== dbPath);
+        saveDatabasesList(list);
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to remove database from list:", error);
+        return { success: false, message: error.message };
+    }
+});
+
+// Load a single report to pre-fill the form when "Edit" is clicked
+ipcMain.handle('loadFitrep', async (e, { dbPath, reportId }) => {
+    try {
+        const db = new Database(dbPath, { readonly: true });
+        const row = db.prepare(`SELECT *, rowid as ReportID FROM [Reports] WHERE rowid = ?`).get(reportId);
+        db.close();
+        return row;
+    } catch (err) {
+        console.error("Error loading Fitrep:", err);
+        return null;
+    }
+});
+
+// Delete a specific report
+ipcMain.handle('deleteFitrep', async (e, { dbPath, reportId }) => {
+    try {
+        const db = new Database(dbPath);
+        db.prepare(`DELETE FROM [Reports] WHERE rowid = ?`).run(reportId);
+        db.close();
+        return { success: true };
+    } catch (err) {
+        console.error("Error deleting Fitrep:", err);
+        return { success: false, error: err.message };
     }
 });
 
@@ -234,16 +301,16 @@ ipcMain.handle('export-sqlite', async (e) => {
 });
 
 // 2. Export ACCDB (Java trigger)
-// 2. Export ACCDB (Java trigger)
-ipcMain.handle('export-accdb', async (e) => {
+ipcMain.handle('export-accdb', async (e, dbPath) => {
     try {
         // --- ADDED SAFETY CHECK ---
         // Prevents Java from throwing a "File not found" error if the DB doesn't exist yet
-        if (!fs.existsSync(DEFAULTS.SQLITE)) {
-            throw new Error("No internal database found. Please click 'Save to Database' first.");
+        if (!dbPath || !fs.existsSync(dbPath)) {
+            throw new Error("No database found. Please open or create a database first.");
         }
 
-        const defaultFileName = generateDynamicName('accdb');
+        // Pass the dynamic dbPath to the helper function
+        const defaultFileName = generateDynamicName(dbPath, 'accdb');
 
         const { canceled, filePath } = await dialog.showSaveDialog({
             title: 'Export ACCDB Database',
@@ -254,7 +321,8 @@ ipcMain.handle('export-accdb', async (e) => {
 
         if (canceled || !filePath) return { success: false, error: "ACCDB Export cancelled." };
 
-        await runImportLogic(DEFAULTS.SQLITE, filePath);
+        // Point the Java script at the currently opened database!
+        await runImportLogic(dbPath, filePath);
         
         console.log(`Successfully exported ACCDB to: ${filePath}`);
         return { success: true, path: filePath };
@@ -266,10 +334,12 @@ ipcMain.handle('export-accdb', async (e) => {
 });
 
 // THE HELPER FUNCTION
-function generateDynamicName(extension) {
+// THE HELPER FUNCTION - Updated to accept dbPath
+function generateDynamicName(dbPath, extension) {
     try {
-        const db = new Database(DEFAULTS.SQLITE, { readonly: true });
-        const report = db.prepare("SELECT FullName, FirstName, LastName, UIC FROM [Reports] LIMIT 1").get();
+        const db = new Database(dbPath, { readonly: true });
+        // Grab the most recently added report to use for the file name
+        const report = db.prepare("SELECT FullName, FirstName, LastName, UIC FROM [Reports] ORDER BY rowid DESC LIMIT 1").get();
         db.close();
 
         let namePart = "Draft";
@@ -317,6 +387,95 @@ ipcMain.handle('generate-report', async (e, reportData) => {
         console.error("PDF Generation Error:", err);
         return { success: false, error: err.message }; 
     }
+});
+
+// --- NEW: HOMEPAGE FILE MANAGEMENT HANDLERS ---
+
+ipcMain.handle('getDatabases', async () => {
+    return getDatabasesList();
+});
+
+ipcMain.handle('openExternal', async (event, filePath) => {
+    shell.openPath(filePath);
+});
+
+ipcMain.handle('uploadDatabase', async () => {
+    const result = await dialog.showOpenDialog({
+        title: 'Select SQLite Database',
+        filters: [{ name: 'SQLite Database', extensions: ['sqlite', 'db'] }],
+        properties: ['openFile']
+    });
+
+    if (!result.canceled) {
+        const filePath = result.filePaths[0];
+        const name = path.basename(filePath);
+        const list = getDatabasesList();
+        
+        // Prevent duplicate entries in the tracking list
+        if (!list.find(d => d.path === filePath)) {
+            list.push({ name, path: filePath });
+            saveDatabasesList(list);
+        }
+        return { success: true, name, path: filePath };
+    }
+    return { success: false };
+});
+
+ipcMain.handle('createDatabase', async () => {
+    const { canceled, filePath } = await dialog.showSaveDialog({
+        title: 'Create New Database',
+        defaultPath: path.join(app.getPath('desktop'), 'MyEvals.db'),
+        filters: [{ name: 'SQLite Database', extensions: ['db', 'sqlite'] }]
+    });
+
+    if (canceled || !filePath) return { success: false };
+
+    try {
+        // 1. Copy the pristine template
+        fs.copyFileSync(SQLITE_TEMPLATE, filePath);
+        
+        // 2. ROOT FOLDER FAIL-SAFE: Ensure FolderID 1 exists for NAVFIT98
+        const db = new Database(filePath);
+        const rootFolder = db.prepare("SELECT * FROM [Folders] WHERE FolderID = 1").get();
+        if (!rootFolder) {
+            db.prepare(`
+                INSERT INTO [Folders] (FolderName, FolderID, Parent, Active)
+                VALUES (?, ?, ?, ?)
+            `).run('Root', 1, 0, 1);
+        }
+        db.close();
+        
+        // 3. Save to tracked list
+        const name = path.basename(filePath);
+        const list = getDatabasesList();
+        list.push({ name, path: filePath });
+        saveDatabasesList(list);
+        
+        return { success: true, name, path: filePath };
+    } catch (error) {
+        console.error("Create DB Error:", error);
+        return { success: false, message: error.message };
+    }
+});
+
+ipcMain.handle('exportDb', async (event, sourceDbPath) => {
+    if (!sourceDbPath) return { success: false, message: 'No source database path provided.' };
+
+    const { filePath } = await dialog.showSaveDialog({
+        title: 'Export Database',
+        defaultPath: path.join(app.getPath('desktop'), path.basename(sourceDbPath)),
+        filters: [{ name: 'SQLite Database', extensions: ['db', 'sqlite'] }]
+    });
+
+    if (filePath) {
+        try {
+            fs.copyFileSync(sourceDbPath, filePath);
+            return { success: true, path: filePath };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
+    return { success: false, message: 'Export cancelled' };
 });
 
 // --- 5. APP LIFECYCLE (GUI Setup) ---
