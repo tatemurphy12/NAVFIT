@@ -47,54 +47,65 @@ export default function FitrepForm() {
 
   // Pre-fill data if editing an existing report
   useEffect(() => {
-    // Helper to convert DB integer back to UI text
     const intToPromoRec = (val) => {
         const map = { 0: 'NOB', 1: 'Significant Problems', 2: 'Progressing', 3: 'Promotable', 4: 'Must Promote', 5: 'Early Promote' };
         return map[val] || '';
     };
 
-    if (fitrep && setFormData) {
+    const populateForm = (data) => {
         setFormData(prev => ({
             ...prev,
-            name: fitrep.FullName || '',
-            grade: fitrep.Rate || '',
-            desig: fitrep.Desig || '',
-            ssn: fitrep.SSN || '',
-            uic: fitrep.UIC || '',
-            station: fitrep.ShipStation || '',
-            promo: fitrep.PromotionStatus || '',
-            dateRep: fitrep.DateReported || '',
-            fromPeriod: fitrep.FromDate || '',
-            toPeriod: fitrep.ToDate || '',
-            reportSenior: fitrep.ReportingSenior || '',
-            reportGrade: fitrep.RSGrade || '',
-            reportDesig: fitrep.RSDesig || '',
-            reportTitle: fitrep.RSTitle || '',
-            reportUIC: fitrep.RSUIC || '',
-            reportSSN: fitrep.RSSSN || '',
-            seniorAddress: fitrep.RSAddress || '',
-            cmdEmployAch: fitrep.Achievements || '',
-            primaryDuty: fitrep.PrimaryDuty || '',
-            duties: fitrep.Duties || '',
-            dateCounseled: fitrep.DateCounseled || '',
-            counselor: fitrep.Counseler || '', // Corrected spelling for DB
-            
-            // Convert numbers to strings for React inputs
-            proExpert: fitrep.PROF ? fitrep.PROF.toString() : '',
-            cmeo: fitrep.EO ? fitrep.EO.toString() : '',
-            bearing: fitrep.MIL ? fitrep.MIL.toString() : '',
-            teamwork: fitrep.TEAM ? fitrep.TEAM.toString() : '',
-            leadership: fitrep.LEAD ? fitrep.LEAD.toString() : '',
-            missAccomp: fitrep.MIS ? fitrep.MIS.toString() : '',
-            tactPerform: fitrep.TAC ? fitrep.TAC.toString() : '',
-            
-            milestoneOne: fitrep.RecommendA || '',
-            milestoneTwo: fitrep.RecommendB || '',
-            comments: fitrep.Comments || '',
-            promotion: intToPromoRec(fitrep.PromotionRecom) // Corrected mapping
+            name: data.FullName || '',
+            grade: data.Rate || '',
+            desig: data.Desig || '',
+            ssn: data.SSN || '',
+            uic: data.UIC || '',
+            station: data.ShipStation || '',
+            promo: data.PromotionStatus || '',
+            dateRep: data.DateReported || '',
+            fromPeriod: data.FromDate || '',
+            toPeriod: data.ToDate || '',
+            reportSenior: data.ReportingSenior || '',
+            reportGrade: data.RSGrade || '',
+            reportDesig: data.RSDesig || '',
+            reportTitle: data.RSTitle || '',
+            reportUIC: data.RSUIC || '',
+            reportSSN: data.RSSSN || '',
+            seniorAddress: data.RSAddress || '',
+            cmdEmployAch: data.Achievements || '',
+            primaryDuty: data.PrimaryDuty || '',
+            duties: data.Duties || '',
+            dateCounseled: data.DateCounseled || '',
+            counselor: data.Counseler || '',
+            proExpert: data.PROF ? data.PROF.toString() : '',
+            cmeo: data.EO ? data.EO.toString() : '',
+            bearing: data.MIL ? data.MIL.toString() : '',
+            teamwork: data.TEAM ? data.TEAM.toString() : '',
+            leadership: data.LEAD ? data.LEAD.toString() : '',
+            missAccomp: data.MIS ? data.MIS.toString() : '',
+            tactPerform: data.TAC ? data.TAC.toString() : '',
+            milestoneOne: data.RecommendA || '',
+            milestoneTwo: data.RecommendB || '',
+            comments: data.Comments || '',
+            promotion: intToPromoRec(data.PromotionRecom),
+            dutyStatus: data.Active ? 'ACT' : data.TAR ? 'FTS' : data.Inactive ? 'INACT' : data.ATADSW ? 'AT/ADSW/' : '',
+            occasion: data.Periodic ? 'Periodic' : data.DetInd ? 'Detachment of Individual' : data.Frocking ? 'Detachment of Reporting Senior' : data.Special ? 'Special' : '',
+            notObserved: data.NOB ? 'Not Observed Report' : '',
+            reportType: data.Regular ? 'Regular' : data.Concurrent ? 'Concurrent' : data.OpsCdr ? 'Ops Cdr' : data.ReportType || '',
+            billetSub: data.BilletSubcat || '',
+            physicalRead: data.PhysicalReadiness || '',
         }));
+    };
+
+    if (reportId && dbPath && setFormData) {
+        // Fetch the full report from the database
+        window.api.loadFitrep({ dbPath, reportId }).then((fullReport) => {
+            if (fullReport) {
+                populateForm(fullReport);
+            }
+        });
     }
-  }, [fitrep, setFormData]);
+  }, [reportId, dbPath, setFormData]);
   // Helper to convert Browser Date (YYYY-MM-DD) to Navy Format (YYMMM DD)
   const formatDateToNavy = (dateString) => {
     if (!dateString) return "";

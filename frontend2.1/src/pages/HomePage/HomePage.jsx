@@ -171,7 +171,7 @@ export default function HomePage() {
                       <td>{report.FullName || '—'}</td>
                       <td>{report.Rate || '—'}</td>
                       <td className="action-cell">
-                        <button className="btn btn-secondary" onClick={() => handleEditReport(report.ReportID)}>
+                        <button className="btn btn-secondary" onClick={() => handleEditReport(report)}>
                           ✏️ Edit / View
                         </button>
                         <button className="btn btn-danger" onClick={() => handleDeleteFitrep(report.ReportID)}>
