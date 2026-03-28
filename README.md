@@ -9,17 +9,34 @@ Before running the application, ensure your Linux environment has the following:
 * **npm**: Node Package Manager (comes with Node.js)
 * **Git**: To clone the project from GitLab
 
-### 3. Downloading the Project
-* Open your terminal and navigate to the directory where you want the project to live:
-```bash
-git clone https://gitlab.usna.edu/tatemurphy12/navfit26_ucanaccess.git
-```
-* cd NAVFIT26
+## 2. Prerequisites
+Before running the application, ensure your Linux environment has the following:
+* **Node.js**: Version 18.0 or higher
+* **npm**: Node Package Manager (comes with Node.js)
+* **Git**: To clone the project from GitLab
 
-### 4. Setup & Installation
-* You must be in the root `NAVFIT26` folder to run the master installation. This command installs dependencies for both the UI and the Electron shell:
+### 3. Downloading the Project
+NAVFIT26 can be downloaded as either an AppImage or .deb installer from https://tuckersmith.github.io/NAVFIT26/
+
+
+### 4a. Setup & Installation (Linux)
+* To install the .deb file, navigate to the folder in which it was downloaded and run:
 ```bash
-npm run install-all
+sudo apt install ./navfit26_1.0.0_amd64.deb
+```
+
+### 4b. Setup and Installation (Windows)
+Not yet updated
+
+### 5. How to Launch the UI
+To run NAVFIT26 from the AppImage:
+```bash
+./NAVFIT26-1.0.0.AppImage --no-sandbox
+```
+
+To run NAVFIT26 when installed as a package:
+```bash
+navfit26
 ```
 ### 5. How to Launch the UI
 * Ensure you are in the root `NAVFIT26` directory. Run the following command to build the interface and launch the desktop window:
