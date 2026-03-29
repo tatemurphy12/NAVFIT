@@ -123,6 +123,19 @@ export default function HomePage() {
     }
   };
 
+  const handleExportACCDB = async () => {
+    try {
+      const result = await window.api.exportACCDB(openedDb.path);
+      if (result.success) {
+        alert(`ACCDB exported successfully!\n\n${result.path}`);
+      } else if (result.error && result.error !== "ACCDB Export cancelled.") {
+        alert(`Export failed:\n${result.error}`);
+      }
+    } catch (err) {
+      alert(`Export failed:\n${err.message || err}`);
+    }
+  };
+
   // ── OPENED DATABASE VIEW ─────────────────────────────────────────────────
   if (openedDb) {
     return (
@@ -143,7 +156,7 @@ export default function HomePage() {
             <button className="btn btn-primary" onClick={handleAddNewReport}>
               + Add Report
             </button>
-            <button className="btn btn-secondary" onClick={() => window.api.exportACCDB(openedDb.path)}>
+            <button className="btn btn-secondary" onClick={handleExportACCDB}>
               ↓ Export ACCDB
             </button>
           </div>

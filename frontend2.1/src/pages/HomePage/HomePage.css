@@ -286,6 +286,16 @@
   display: flex;
   gap: 14px;
   flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.db-actions .btn {
+  flex: 1 1 0;
+  min-width: 140px;
+  text-align: center;
+  justify-content: center;
 }
 
 /* Fitreps table */
