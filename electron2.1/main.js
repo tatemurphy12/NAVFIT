@@ -528,7 +528,6 @@ function createWindow() {
     mainWindow.loadFile(frontendPath).catch(err => {
         console.error("Failed to load file:", err);
     });
-    mainWindow.webContents.openDevTools();
 }
 
 app.whenReady().then(() => {
