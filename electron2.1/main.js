@@ -420,24 +420,46 @@ ipcMain.handle('getDatabases', async () => {
 
 ipcMain.handle('uploadDatabase', async () => {
     const result = await dialog.showOpenDialog({
-        title: 'Select SQLite Database',
-        filters: [{ name: 'SQLite Database', extensions: ['sqlite', 'db'] }],
+        title: 'Open Database',
+        filters: [
+            { name: 'All Supported Databases', extensions: ['db', 'sqlite', 'accdb'] },
+            { name: 'SQLite Database', extensions: ['db', 'sqlite'] },
+            { name: 'Access Database', extensions: ['accdb'] }
+        ],
         properties: ['openFile']
     });
 
-    if (!result.canceled) {
-        const filePath = result.filePaths[0];
-        const name = path.basename(filePath);
+    if (result.canceled) return { success: false };
+
+    const filePath = result.filePaths[0];
+    const ext = path.extname(filePath).toLowerCase();
+
+    try {
+        let dbPath = filePath;
+
+        // If the user selected an ACCDB, convert it to SQLite first
+        if (ext === '.accdb') {
+            const baseName = path.basename(filePath, '.accdb');
+            const outputDir = path.dirname(filePath);
+            dbPath = path.join(outputDir, `${baseName}.db`);
+
+            await runExportLogic(filePath, dbPath);
+        }
+
+        const name = path.basename(dbPath);
         const list = getDatabasesList();
-        
+
         // Prevent duplicate entries in the tracking list
-        if (!list.find(d => d.path === filePath)) {
-            list.push({ name, path: filePath });
+        if (!list.find(d => d.path === dbPath)) {
+            list.push({ name, path: dbPath });
             saveDatabasesList(list);
         }
-        return { success: true, name, path: filePath };
+
+        return { success: true, name, path: dbPath };
+    } catch (err) {
+        console.error("Upload Database Error:", err);
+        return { success: false, error: `Failed to open database: ${err}` };
     }
-    return { success: false };
 });
 
 ipcMain.handle('createDatabase', async () => {
