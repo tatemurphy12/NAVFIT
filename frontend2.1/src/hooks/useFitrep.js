@@ -201,7 +201,66 @@ export default function useFitrep(dbPath) {
     };
 
     const handlePDFExport = async () => {
-        const result = await window.api.exportPDF(selectedReport);
+        // Build export data directly from current form state so the PDF
+        // always reflects what is on screen (not a stale selectedReport).
+        const exportData = {
+            FullName: formData.name || "",
+            Rate: formData.grade || "",
+            Desig: formData.desig || "",
+            SSN: formData.ssn ? formData.ssn.replace(/-/g, '') : "",
+            Active: formData.dutyStatus === 'ACT' ? 1 : 0,
+            TAR: formData.dutyStatus === 'FTS' ? 1 : 0,
+            Inactive: formData.dutyStatus === 'INACT' ? 1 : 0,
+            ATADSW: formData.dutyStatus === 'AT/ADSW/' ? 1 : 0,
+            UIC: formData.uic || "",
+            ShipStation: formData.station || "",
+            PromotionStatus: formData.promo || "",
+            DateReported: formData.dateRep || "",
+            Periodic: formData.occasion === 'Periodic' ? 1 : 0,
+            DetInd: formData.occasion === 'Detachment of Individual' ? 1 : 0,
+            DetRS: formData.occasion === 'Detachment of Reporting Senior' ? 1 : 0,
+            Special: formData.occasion === 'Special' ? 1 : 0,
+            FromDate: formData.fromPeriod || "",
+            ToDate: formData.toPeriod || "",
+            NOB: formData.notObserved === 'Not Observed Report' ? 1 : 0,
+            Regular: formData.reportType === 'Regular' ? 1 : 0,
+            Concurrent: formData.reportType === 'Concurrent' ? 1 : 0,
+            OpsCdr: formData.reportType === 'Ops Cdr' ? 1 : 0,
+            PhysicalReadiness: formData.physicalRead || "",
+            BilletSubcat: formData.billetSub || "",
+            ReportingSenior: formData.reportSenior || "",
+            RSGrade: formData.reportGrade || "",
+            RSDesig: formData.reportDesig || "",
+            RSTitle: formData.reportTitle || "",
+            RSUIC: formData.reportUIC || "",
+            RSSSN: formData.reportSSN ? formData.reportSSN.replace(/-/g, '') : "",
+            RSAddress: formData.seniorAddress || "",
+            Achievements: formData.cmdEmployAch || "",
+            PrimaryDuty: formData.primaryDuty || "",
+            Duties: formData.duties || "",
+            DateCounseled: formData.dateCounseled || "",
+            Counseler: formData.counselor || "",
+            PROF: formData.proExpert || "",
+            EO: formData.cmeo || "",
+            MIL: formData.bearing || "",
+            TEAM: formData.teamwork || "",
+            MIS: formData.missAccomp || "",
+            LEAD: formData.leadership || "",
+            TAC: formData.tactPerform || "",
+            RecommendA: formData.milestoneOne || "",
+            RecommendB: formData.milestoneTwo || "",
+            Comments: formData.comments || "",
+            PromotionRecom: (() => {
+                const map = { 'NOB': 1, 'Significant Problems': 2, 'Progressing': 3, 'Promotable': 4, 'Must Promote': 5, 'Early Promote': 6 };
+                return map[formData.promotion] || "";
+            })(),
+            SummarySP: formData.sumPromo?.sigProb || "",
+            SummaryProg: formData.sumPromo?.prog || "",
+            SummaryProm: formData.sumPromo?.promotable || "",
+            SummaryMP: formData.sumPromo?.mustPromote || "",
+            SummaryEP: formData.sumPromo?.earlyPromote || "",
+        };
+        const result = await window.api.exportPDF(exportData);
         if (result.success) {
             triggerNotification("Success", `PDF exported successfully!`, false);
         } else {
