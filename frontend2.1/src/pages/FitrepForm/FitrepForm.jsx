@@ -41,7 +41,6 @@ export default function FitrepForm() {
     isSaved,
     hasUnsavedChanges, 
     handleACCDBExport,
-    handleSQLiteExport,
     getError
   } = useFitrep(dbPath);
 
@@ -156,7 +155,7 @@ export default function FitrepForm() {
               const confirm = window.confirm("You have unsaved changes! Are you sure you want to leave without saving?");
               if (!confirm) return;
             }
-            navigate('/');
+            navigate('/', { state: { openDb: { name: dbPath.split(/[/\\]/).pop(), path: dbPath } } });
           }}
           style={{ cursor: 'pointer', padding: '5px 10px' }}
         >
@@ -1490,7 +1489,6 @@ export default function FitrepForm() {
       <div className="navfit-actions" style={{ padding: '10px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
         <button className="save-btn" onClick={() => handleSaveFitrep(currentReportId, setCurrentReportId, dbPath)}>Save Changes</button>
         <button className="pdf-btn" onClick={handlePDFExport} disabled={!isSaved || hasUnsavedChanges}>Export PDF</button>
-        <button className="sqlite-btn" onClick={handleSQLiteExport}>Export SQLite file</button>
       </div>
 
       {/* MODAL OVERLAY */}

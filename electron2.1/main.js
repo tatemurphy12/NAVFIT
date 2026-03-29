@@ -261,46 +261,7 @@ ipcMain.handle('deleteFitrep', async (e, { dbPath, reportId }) => {
     }
 });
 
-// 2. OUTWARD EXPORT: Copies the internal database to the user's Documents folder
-// 2. OUTWARD EXPORT: Copies the internal database to the user's chosen folder
-ipcMain.handle('export-sqlite', async (e) => {
-    try {
-        if (!fs.existsSync(DEFAULTS.SQLITE)) {
-            throw new Error("No internal database found. Please save the FitRep first.");
-        }
-
-        const db = new Database(DEFAULTS.SQLITE, { readonly: true });
-        const report = db.prepare("SELECT FullName, UIC FROM [Reports] LIMIT 1").get();
-        db.close();
-
-        let outputFileName = 'Generated_FITREP.sqlite'; 
-        if (report) {
-            const namePart = report.FullName || "Draft";
-            const uicPart = report.UIC || "NoUIC";
-            const safeName = `${namePart}_${uicPart}`.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-            outputFileName = `FITREP_${safeName}.sqlite`;
-        }
-
-        const { canceled, filePath } = await dialog.showSaveDialog({
-            title: 'Export SQLite Database',
-            defaultPath: path.join(app.getPath('desktop'), outputFileName),
-            filters: [{ name: 'SQLite Database', extensions: ['sqlite', 'db'] }]
-        });
-
-        if (canceled || !filePath) return { success: false, error: "Export cancelled." };
-
-        // We use filePath here exclusively now!
-        fs.copyFileSync(DEFAULTS.SQLITE, filePath);
-        console.log(`Successfully exported SQLite to: ${filePath}`);
-
-        return { success: true, path: filePath };
-    } catch (err) { 
-        console.error("Export SQLite Error:", err);
-        return { success: false, error: err.message }; 
-    }
-});
-
-// 2. Export ACCDB (Java trigger)
+// Export ACCDB (Java trigger)
 // Creates a clean temporary SQLite copy with NAVFIT98-compatible structure,
 // hands it to the Java converter, then cleans up the temp file.
 ipcMain.handle('export-accdb', async (e, dbPath) => {
@@ -518,26 +479,6 @@ ipcMain.handle('createDatabase', async () => {
         console.error("Create DB Error:", error);
         return { success: false, message: error.message };
     }
-});
-
-ipcMain.handle('exportDb', async (event, sourceDbPath) => {
-    if (!sourceDbPath) return { success: false, message: 'No source database path provided.' };
-
-    const { filePath } = await dialog.showSaveDialog({
-        title: 'Export Database',
-        defaultPath: path.join(app.getPath('desktop'), path.basename(sourceDbPath)),
-        filters: [{ name: 'SQLite Database', extensions: ['db', 'sqlite'] }]
-    });
-
-    if (filePath) {
-        try {
-            fs.copyFileSync(sourceDbPath, filePath);
-            return { success: true, path: filePath };
-        } catch (error) {
-            return { success: false, message: error.message };
-        }
-    }
-    return { success: false, message: 'Export cancelled' };
 });
 
 // --- 5. APP LIFECYCLE (GUI Setup) ---

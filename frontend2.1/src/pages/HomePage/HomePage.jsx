@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './HomePage.css';
 
 export default function HomePage() {
@@ -9,8 +9,16 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [fitrepsLoading, setFitrepsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => { loadDatabases(); }, []);
+
+  // Auto-open a database if navigated back from FitrepForm
+  useEffect(() => {
+    if (location.state?.openDb) {
+      handleEnterFolder(location.state.openDb);
+    }
+  }, [location.state]);
 
   const loadDatabases = async () => {
     setLoading(true);
@@ -137,9 +145,6 @@ export default function HomePage() {
             </button>
             <button className="btn btn-secondary" onClick={() => window.api.exportACCDB(openedDb.path)}>
               ↓ Export ACCDB
-            </button>
-            <button className="btn btn-secondary" onClick={() => window.api.exportDb(openedDb.path)}>
-              ↓ Export SQLite
             </button>
           </div>
 
