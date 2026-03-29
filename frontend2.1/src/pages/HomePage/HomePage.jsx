@@ -135,9 +135,6 @@ export default function HomePage() {
             <button className="btn btn-primary" onClick={handleAddNewReport}>
               + Add Report
             </button>
-            <button className="btn btn-secondary" onClick={() => window.api.openExternal(openedDb.path)}>
-              🗄️ Open in DB Browser
-            </button>
             <button className="btn btn-secondary" onClick={() => window.api.exportDb(openedDb.path)}>
               ↓ Export SQLite
             </button>

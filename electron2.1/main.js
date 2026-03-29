@@ -395,9 +395,6 @@ ipcMain.handle('getDatabases', async () => {
     return getDatabasesList();
 });
 
-ipcMain.handle('openExternal', async (event, filePath) => {
-    shell.openPath(filePath);
-});
 
 ipcMain.handle('uploadDatabase', async () => {
     const result = await dialog.showOpenDialog({
@@ -443,6 +440,10 @@ ipcMain.handle('createDatabase', async () => {
                 VALUES (?, ?, ?, ?)
             `).run('Root', 1, 0, 1);
         }
+
+        // 3. Clear any pre-filled sample data so the database starts empty
+        db.prepare("DELETE FROM [Reports]").run();
+
         db.close();
         
         // 3. Save to tracked list

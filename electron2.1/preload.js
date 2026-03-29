@@ -13,7 +13,6 @@ contextBridge.exposeInMainWorld('api', {
     loadFitreps: (dbPath) => ipcRenderer.invoke('loadFitreps', dbPath),
     loadFitrep: (data) => ipcRenderer.invoke('loadFitrep', data),
     deleteFitrep: (data) => ipcRenderer.invoke('deleteFitrep', data),
-    openExternal: (filePath) => ipcRenderer.invoke('openExternal', filePath),
     exportDb: (dbPath) => ipcRenderer.invoke('exportDb', dbPath),
     removeDatabase: (dbPath) => ipcRenderer.invoke('removeDatabase', dbPath),
 });
