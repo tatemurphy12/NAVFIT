@@ -301,35 +301,94 @@ ipcMain.handle('export-sqlite', async (e) => {
 });
 
 // 2. Export ACCDB (Java trigger)
+// Creates a clean temporary SQLite copy with NAVFIT98-compatible structure,
+// hands it to the Java converter, then cleans up the temp file.
 ipcMain.handle('export-accdb', async (e, dbPath) => {
+    let tempDbPath = null;
     try {
-        // --- ADDED SAFETY CHECK ---
-        // Prevents Java from throwing a "File not found" error if the DB doesn't exist yet
         if (!dbPath || !fs.existsSync(dbPath)) {
             throw new Error("No database found. Please open or create a database first.");
         }
 
-        // Pass the dynamic dbPath to the helper function
         const defaultFileName = generateDynamicName(dbPath, 'accdb');
 
         const { canceled, filePath } = await dialog.showSaveDialog({
             title: 'Export ACCDB Database',
-            // Force it to the Desktop
-            defaultPath: path.join(app.getPath('desktop'), defaultFileName), 
+            defaultPath: path.join(app.getPath('desktop'), defaultFileName),
             filters: [{ name: 'Access Database', extensions: ['accdb'] }]
         });
 
         if (canceled || !filePath) return { success: false, error: "ACCDB Export cancelled." };
 
-        // Point the Java script at the currently opened database!
-        await runImportLogic(dbPath, filePath);
-        
+        // 1. Read all reports from the user's working database
+        const sourceDb = new Database(dbPath, { readonly: true });
+        const reports = sourceDb.prepare("SELECT * FROM [Reports]").all();
+        sourceDb.close();
+
+        if (!reports || reports.length === 0) {
+            throw new Error("No reports found in database. Save a report before exporting.");
+        }
+
+        // 2. Create a clean temporary copy from the pristine template
+        tempDbPath = path.join(INTERNAL_DATA_DIR, `accdb_staging_${Date.now()}.db`);
+        fs.copyFileSync(SQLITE_TEMPLATE, tempDbPath);
+
+        const tempDb = new Database(tempDbPath);
+
+        // 3. Wipe all data to prevent folder/report duplication (NAVFIT98 requirement)
+        tempDb.exec("DELETE FROM [Reports]; DELETE FROM [Folders]; DELETE FROM [Summary];");
+
+        // 4. Create the "Root" container (FolderID 1)
+        // NAVFIT98 requires this as the anchor for the navigation tree
+        tempDb.prepare(`
+            INSERT INTO [Folders] (FolderName, FolderID, Parent, Active)
+            VALUES (?, ?, ?, ?)
+        `).run('Root', 1, 0, 1);
+
+        // 5. Re-insert each report with the exact schema NAVFIT98 expects
+        const reportStmt = tempDb.prepare(`
+            INSERT INTO [Reports] (
+                Parent, ReportType, FullName, FirstName, MI, LastName, Suffix,
+                Rate, Desig, SSN, Active, TAR, Inactive, ATADSW, UIC, ShipStation,
+                PromotionStatus, DateReported, Periodic, DetInd, Frocking, Special,
+                FromDate, ToDate, NOB, Regular, Concurrent, OpsCdr,
+                ReportingSenior, RSGrade, RSDesig, RSTitle, RSUIC, RSSSN, RSAddress,
+                Achievements, PrimaryDuty, Duties, DateCounseled,
+                PROF, QUAL, EO, MIL, PA, TEAM, LEAD, MIS, TAC,
+                RecommendA, RecommendB, Comments, PromotionRecom
+            ) VALUES (
+                'a 1',
+                @ReportType, @FullName, @FirstName, @MI, @LastName, @Suffix,
+                @Rate, @Desig, @SSN, 1, @TAR, @Inactive, @ATADSW, @UIC, @ShipStation,
+                @PromotionStatus, @DateReported, @Periodic, @DetInd, @Frocking, @Special,
+                @FromDate, @ToDate, @NOB, @Regular, @Concurrent, @OpsCdr,
+                @ReportingSenior, @RSGrade, @RSDesig, @RSTitle, @RSUIC, @RSSSN, @RSAddress,
+                @Achievements, @PrimaryDuty, @Duties, @DateCounseled,
+                @PROF, @QUAL, @EO, @MIL, @PA, @TEAM, @LEAD, @MIS, @TAC,
+                @RecommendA, @RecommendB, @Comments, @PromotionRecom
+            )
+        `);
+
+        for (const report of reports) {
+            reportStmt.run(report);
+        }
+
+        tempDb.close();
+
+        // 6. Hand the clean staging DB to the Java converter
+        await runImportLogic(tempDbPath, filePath);
+
         console.log(`Successfully exported ACCDB to: ${filePath}`);
         return { success: true, path: filePath };
-        
+
     } catch (err) {
         console.error("Export ACCDB Error:", err);
-        return { success: false, error: err.message }; 
+        return { success: false, error: err.message };
+    } finally {
+        // 7. Clean up the temporary staging database
+        if (tempDbPath && fs.existsSync(tempDbPath)) {
+            try { fs.unlinkSync(tempDbPath); } catch (_) {}
+        }
     }
 });
 
