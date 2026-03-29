@@ -2,16 +2,16 @@ name: Build and Release
 on:
   push:
     branches:
-      - main
+      - '**'
     tags:
-      - 'v*' # Triggers when you push a tag (e.g., git tag v1.0.0.6)
+      - 'v*'
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     permissions:
-      contents: write # Essential for creating the GitHub Release and uploading files
-    
+      contents: write
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -21,51 +21,33 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          # This tells GitHub where to look for lockfiles to speed up future builds
           cache-dependency-path: |
             package-lock.json
             frontend2.1/package-lock.json
             electron2.1/package-lock.json
 
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential python3 libsqlite3-dev
+      - name: Install All Dependencies
+        run: npm run install-all
 
-      - name: Install All Nested Dependencies
-        run: |
-          # 1. Install root dependencies (Master Launcher)
-          npm install
-          # 2. Install Frontend dependencies (This provides 'vite')
-          cd frontend2.1 && npm install
-          # 3. Install Electron/Backend dependencies
-          cd ../electron2.1 && npm install
-
-      - name: Fix Binary Permissions
-        run: |
-          # Pointing to the actual location inside the electron2.1 folder
-          chmod +x electron2.1/bin/jre/bin/java || true
-          chmod +x electron2.1/bin/app.jar || true
-
-      #- name: Run Java Diagnostic
-      #  run: node test-java.js
-
-      - name: Build UI and Package Linux Assets
-        run: |
-          # This triggers your root script: "cd frontend2.1 && npm run build"
-          npm run build-ui
-          # Package both formats. electron-builder handles the better-sqlite3 rebuild.
-          npx electron-builder --linux deb AppImage
+      - name: Build and Package Windows Installer
+        run: npm run dist:win
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: navfit26-windows
+          path: |
+            electron2.1/dist/*.exe
+            electron2.1/dist/*.msi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          # Delimited list tells the action to pick up both extensions
           files: |
-            dist/*.deb
-            dist/*.AppImage
+            electron2.1/dist/*.exe
+            electron2.1/dist/*.msi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

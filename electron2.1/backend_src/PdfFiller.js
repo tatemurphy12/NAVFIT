@@ -1,12 +1,12 @@
 const fs = require('fs');
-const { PDFDocument, PDFCheckBox, PDFTextField } = require('pdf-lib');
+const { PDFDocument, PDFCheckBox, PDFTextField, StandardFonts } = require('pdf-lib');
 
 /**
  * PdfFiller
  * Handles the low-level logic of mapping JSON data into a PDF Form.
  */
 class PdfFiller {
-    
+
     /**
      * Fills a PDF template with data from a JSON object.
      * @param {Object} jsonData - Key-value pairs of field names and values.
@@ -24,11 +24,14 @@ class PdfFiller {
             const pdfDoc = await PDFDocument.load(templateBytes);
             const form = pdfDoc.getForm();
 
+            // Embed a default font for fields that are missing a /DA entry
+            const defaultFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
             // 2. Iterate through data and map to fields
             for (const [key, value] of Object.entries(jsonData)) {
                 try {
                     const field = form.getField(key);
-                    
+
                     if (field instanceof PDFCheckBox) {
                         // Checkbox Logic: Check if value is 'Yes'
                         if (value === 'Yes') {
@@ -37,13 +40,18 @@ class PdfFiller {
                             field.uncheck();
                         }
                     } else if (field instanceof PDFTextField) {
-                        // Text Field Logic: Set raw string
-			field.setFontSize(10);
+                        // Set font size, falling back to updating the default
+                        // appearance first for fields missing a /DA entry
+                        try {
+                            field.setFontSize(10);
+                        } catch (_) {
+                            field.defaultUpdateAppearances(defaultFont);
+                            field.setFontSize(10);
+                        }
                         field.setText(String(value));
                     }
                 } catch (err) {
-                    // Silently ignore fields in JSON that don't exist in PDF
-                    // console.warn(`Field '${key}' not found in PDF template.`);
+                    console.warn(`[PdfFiller] Skipping field '${key}':`, err.message);
                 }
             }
 

@@ -7,6 +7,7 @@
   "author": "Tate Murphy <jtatemurphy@gmail.com>",
   "license": "ISC",
   "scripts": {
+    "postinstall": "electron-builder install-app-deps",
     "start": "electron .",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:mac": "electron-builder --mac",
