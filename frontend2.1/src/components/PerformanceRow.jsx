@@ -1,51 +1,67 @@
 import React from 'react';
+
 const PerformanceRow = ({ label, subLabel, name, value, setter, standards }) => (
   <div className="navfit-row" style={{ display: 'flex', borderBottom: '1px solid black' }}>
     
     {/* LEFT COLUMN: TRAIT & NOB */}
-    <div className="navfit-cell" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '4px', borderRight: '1px solid black' }}>
-      {/* Force Trait Title to be small */}
-      <div style={{fontSize: '9px', lineHeight: '1' }}>{label}</div>
-      {/* Force Sub-description to be even smaller */}
-      <div style={{ fontSize: '9px', color: '#444', marginTop: '2px', lineHeight: '1.1' }}>{subLabel}</div>
+    <div className="navfit-cell" style={{ 
+      flex: 1.2, 
+      display: 'flex', 
+      flexDirection: 'column', 
+      padding: '4px', 
+      borderRight: '1px solid black',
+      backgroundColor: '#fdfdfd' 
+    }}>
+      {/* Label and Sub-label inherit from App.css */}
+      <label style={{ margin: 0, lineHeight: '1.1' }}>{label}</label>
+      <span className="sub-label" style={{ fontSize: '0.9em', opacity: 0.8, display: 'block' }}>
+        {subLabel}
+      </span>
       
       <div style={{ 
         marginTop: 'auto', 
         alignSelf: 'flex-end', 
         display: 'flex', 
         alignItems: 'center', 
-        gap: '3px' 
+        gap: '5px' 
       }}>
-        <label style={{ fontWeight: 'normal', fontSize: '9px' }}>NOB</label>
-        <input type="radio" name={name} value="NOB" checked={value === 'NOB'} onChange={(e) => setter(e.target.value)} />
+        <label style={{ fontWeight: 'normal', margin: 0 }}>NOB</label>
+        <input 
+          type="radio" 
+          name={name} 
+          value="NOB" 
+          checked={value === 'NOB'} 
+          onChange={(e) => setter(e.target.value)} 
+        />
       </div>
     </div>
 
     {/* SCORE COLUMNS (1.0 - 5.0) */}
     {[
       { val: "1.0", flex: 1, text: standards?.s1 },
-      { val: "2.0", flex: 0.5, text: "" },
+      { val: "2.0", flex: 0.6, text: "" },
       { val: "3.0", flex: 1, text: standards?.s3 },
-      { val: "4.0", flex: 0.5, text: "" },
+      { val: "4.0", flex: 0.6, text: "" },
       { val: "5.0", flex: 1, text: standards?.s5 }
     ].map((col, idx) => (
       <div key={idx} className="navfit-cell" style={{ 
         flex: col.flex, 
         display: 'flex', 
         flexDirection: 'column', 
-        padding: '2px',
-        borderRight: idx === 4 ? 'none' : '1px solid black',
-        backgroundColor: idx % 2 === 0 ? '#fff' : '#f9f9f9',
-        minHeight: '80px'
+        backgroundColor: idx % 2 !== 0 ? '#f9f9f9' : '#fff',
+        minHeight: '100px'
       }}>
-        {/* Standard Text: Controlled Font Size */}
-        <div style={{ fontSize: '9px', lineHeight: '1.1', textAlign: 'left', width: '100%', flex: 1 }}>
-          {Array.isArray(col.text) 
-            ? col.text.map((line, i) => <div key={i}>{line}</div>) 
-            : col.text}
+        {/* Standard Text: Uses Master Size via span */}
+        <div style={{ width: '100%', flex: 1 }}>
+          <span style={{ display: 'block', lineHeight: '1.1', fontWeight: 'normal' }}>
+            {Array.isArray(col.text) 
+              ? col.text.map((line, i) => <div key={i}>{line}</div>) 
+              : col.text}
+          </span>
         </div>
         
-        <div style={{ marginTop: 'auto', alignSelf: 'flex-end' }}>
+        {/* Radio Button Container */}
+        <div style={{ marginTop: 'auto', alignSelf: 'flex-end', padding: '2px' }}>
           <input 
             type="radio" 
             name={name} 
@@ -58,4 +74,5 @@ const PerformanceRow = ({ label, subLabel, name, value, setter, standards }) => 
     ))}
   </div>
 );
+
 export default PerformanceRow;

@@ -87,14 +87,44 @@
   display: block;
 }
 
-/* 6. SQUARE RADIO BUTTONS (Unchanged) */
+/* 6. SQUARE RADIO BUTTONS WITH "X" MARK */
 input[type="radio"] {
   appearance: none;
   -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
-  border: 1px solid black;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid black !important;
   border-radius: 0;
   cursor: pointer;
+  background-color: #ffffff !important;
+  display: inline-flex; /* Use flex to center the X */
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin: 2px;
 }
-input[type="radio"]:checked { background-color: #000; }
+
+/* Create the "X" using pseudo-elements when checked */
+input[type="radio"]:checked::before,
+input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  width: 2px;          /* Thickness of the X lines */
+  height: 100%;        /* Length of the lines */
+  background-color: black;
+}
+
+/* Rotate the first line 45 degrees */
+input[type="radio"]:checked::before {
+  transform: rotate(45deg);
+}
+
+/* Rotate the second line -45 degrees */
+input[type="radio"]:checked::after {
+  transform: rotate(-45deg);
+}
+
+/* Hover state */
+input[type="radio"]:hover {
+  background-color: #f0f0f0 !important;
+}

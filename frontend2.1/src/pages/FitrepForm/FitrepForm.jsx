@@ -30,7 +30,7 @@ export default function FitrepForm() {
   // Pass the dynamic dbPath to your hook instead of the hardcoded one!
   const {
     formData, 
-    setFormData, // <--- CRITICAL: Make sure useFitrep.js exports this!
+    setFormData,
     handleChange, 
     handleSaveFitrep,
     handlePDFExport,
@@ -1074,35 +1074,36 @@ export default function FitrepForm() {
     <div className="navfit-row" style={{ 
       display: 'flex', 
       width: '100%', 
-      alignItems: 'stretch'
+      alignItems: 'stretch',
+      borderLeft: '1px solid black',
+      borderRight: '1px solid black',
+      borderBottom: '1px solid black',
+      backgroundColor: '#f9f9f9'
     }}>
-      <div className="navfit-cell" style={{ flex: 1, minWidth: 0, justifyContent: 'center', alignItems: 'center', textAlign: 'center', borderLeft: '1px solid black' }}>
+      {/* Matches PerformanceRow flex: 1.2 */}
+      <div className="navfit-cell" style={{ flex: 1.2, minWidth: 0, justifyContent: 'center', alignItems: 'center', textAlign: 'center', borderRight: '1px solid black' }}>
         <label>PERFORMANCE TRAITS</label>
       </div>
       
-      <div className="navfit-cell" style={{ flex: 1, minWidth: 0, justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-        <label>1.0*</label>
-        <label>Below Standards</label>
+      {/* Each score header matches the row's flex (1.0, 0.6, 1.0, 0.6, 1.0) */}
+      <div className="navfit-cell" style={{ flex: 1, minWidth: 0, borderRight: '1px solid black', textAlign: 'center' }}>
+        <label>1.0*</label><label>BELOW</label>
       </div>
       
-      <div className="navfit-cell" style={{ flex: 0.5, minWidth: 0, justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+      <div className="navfit-cell" style={{ flex: 0.6, minWidth: 0, borderRight: '1px solid black', textAlign: 'center' }}>
         <label>2.0</label>
-        <label>Progressing</label>
       </div>
       
-      <div className="navfit-cell" style={{ flex: 1, minWidth: 0, justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-        <label>3.0</label>
-        <label>Meets Standards</label>
+      <div className="navfit-cell" style={{ flex: 1, minWidth: 0, borderRight: '1px solid black', textAlign: 'center' }}>
+        <label>3.0</label><label>MEETS</label>
       </div>
       
-      <div className="navfit-cell" style={{ flex: 0.5, minWidth: 0, justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+      <div className="navfit-cell" style={{ flex: 0.6, minWidth: 0, borderRight: '1px solid black', textAlign: 'center' }}>
         <label>4.0</label>
-        <label>Above Standards</label>
       </div>
       
-      <div className="navfit-cell" style={{ flex: 1, minWidth: 0, justifyContent: 'center', alignItems: 'center', textAlign: 'center', borderRight: '1px solid black' }}>
-        <label>5.0</label>
-        <label>Greatly Exceeds Standards</label>
+      <div className="navfit-cell" style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
+        <label>5.0</label><label>EXCEEDS</label>
       </div>
     </div>
 
@@ -1255,84 +1256,93 @@ export default function FitrepForm() {
   </div>
 </div>
 
-  {/* BLOCKS 42-44: PROMO GRID */}
-  <div style={{ display: 'flex', width: '100%', borderRight: '1px solid black', borderLeft: '1px solid black', borderBottom: '1px solid black' }}>
+{/* BLOCKS 42-44: PROMO GRID CONTAINER */}
+<div style={{ display: 'flex', width: '100%'}}>
+  
+  {/* LEFT SIDE WRAPPER: This groups the Header, 42, and 43 together */}
+  <div style={{ flex: 3, display: 'flex', flexDirection: 'column' }}>
     
-    {/* Left Side: Blocks 42 & 43 */}
-    <div style={{ flex: 3, display: 'flex', flexDirection: 'column', borderRight: '1px solid black' }}>
-      
-      {/* COMBINED HEADER: TITLE + CATEGORY LABELS */}
-      <div className="navfit-row" style={{ 
-        display: 'flex', 
-        borderBottom: '1px solid black', 
-        alignItems: 'stretch', /* <--- CHANGED FROM center TO stretch */
-        minHeight: '30px'
-      }}>
-        {/* SECTION TITLE */}
-        <div style={{ 
-          flex: 0.175, 
-          padding: '4px 5px', 
-          lineHeight: '1.1',
-          display: 'flex',
-          alignItems: 'center'
-        }}>
-          Promotion<br/>Recommendation
-        </div>
-
-        {/* Category Labels */}
-        {["NOB", "Significant Problems", "Progressing", "Promotable", "Must Promote", "Early Promote"].map((cat) => (
-          <div key={cat} style={{ 
-            flex: 0.2, 
-            textAlign: 'center', 
-            padding: '2px 0',
-            borderLeft: '1px solid black',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            lineHeight: '1.1'
-          }}>
-            <span style={{ display: 'block' }}>
-              {cat.split(' ').map((word, i) => (
-                <React.Fragment key={i}>
-                  {word}
-                  {i === 0 && cat.includes(' ') && <br />}
-                </React.Fragment>
-              ))}
-            </span>
-          </div>
-        ))}
+    {/* 1. THE SHARED HEADER ROW */}
+    <div className="navfit-row" style={{ 
+      display: 'flex', 
+      width: '100%', 
+      alignItems: 'stretch', 
+      backgroundColor: '#f9f9f9', 
+      borderLeft: '1px solid black',
+      borderBottom: '1px solid black'
+    }}>
+      <div style={{ flex: '0 0 20%', padding: '4px', display: 'flex', alignItems: 'center', borderRight: '1px solid black', minWidth: 0, overflow: 'hidden' }}>
+        <label style={{ margin: 0, lineHeight: '1' }}>
+          PROMOTION RECOMMENDATION
+        </label>
       </div>
 
-      {/* Block 42 */}
-      <PromoRec 
-        label="42." 
-        subLabel="INDIVIDUAL" 
-        name="promotion" 
-        value={formData.promotion} 
-        setter={(val) => handleChange('promotion', val)} 
-      />
-
-      {/* Block 43 */}
-      <SumPromo 
-        label="43." 
-        subLabel="SUMMARY" 
-        name="sumPromo" 
-        value={formData.sumPromo} 
-        setter={(val) => handleChange('sumPromo', val)} 
-      />
+      {["NOB", "SIGNIFICANT PROBLEMS", "PROGRESSING", "PROMOTABLE", "MUST PROMOTE", "EARLY PROMOTE"].map((cat) => (
+        <div key={cat} style={{ 
+          flex: 1, 
+          textAlign: 'center', 
+          borderRight: '1px solid black', 
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minWidth: 0 
+        }}>
+          <label style={{ TextAlign: 'center', lineHeight: '1' }}>{cat}</label>
+        </div>
+      ))}
     </div>
 
-    {/* Right Side: Block 44 */}
-    <div className="navfit-cell" style={{ flex: 1.2, display: 'flex', flexDirection: 'column' }}>
-      <label style={{padding: '2px' }}>44. Reporting Senior Address</label>
-      <textarea 
-        className="navfit-textarea" 
-        value={formData.seniorAddress} 
-        onChange={(e) => handleChange('seniorAddress', e.target.value.toUpperCase())} 
-        style={{ flex: 1, border: 'none', resize: 'none', padding: '5px'}} 
-      />
-    </div>
-</div>
+    {/* 2. BLOCK 42 (Individual) */}
+    <PromoRec 
+      label="42." 
+      subLabel="INDIVIDUAL" 
+      name="promotion" 
+      value={formData.promotion} 
+      setter={(val) => handleChange('promotion', val)} 
+    />
+
+    {/* 3. BLOCK 43 (Summary) */}
+    <SumPromo 
+      label="43." 
+      subLabel="SUMMARY" 
+      name="sumPromo" 
+      value={formData.sumPromo} 
+      setter={(val) => handleChange('sumPromo', val)} 
+    />
+  </div> {/* END OF LEFT SIDE WRAPPER */}
+
+  {/* RIGHT SIDE: Block 44 (Sits next to the left column) */}
+  <div 
+    className="navfit-cell" 
+    style={{ 
+      flex: 1, 
+      display: 'flex', 
+      flexDirection: 'column', 
+      borderRight: '1px solid black', 
+      borderBottom: '1px solid black',
+      padding: 0 
+    }}
+  >
+    <label style={{ padding: '4px' }}>
+      44. REPORTING SENIOR ADDRESS
+    </label>
+    
+    <textarea 
+      className="navfit-textarea" 
+      value={formData.seniorAddress || ""} 
+      onChange={(e) => handleChange('seniorAddress', e.target.value.toUpperCase())} 
+      style={{ 
+        flex: 1, 
+        border: 'none', 
+        resize: 'none', 
+        padding: '5px',
+        width: '100%',
+        background: 'transparent'
+      }} 
+    />
+  </div>
+</div> {/* END OF MAIN CONTAINER */}
+
 
 {/* SIGNATURE SECTION: BLOCKS 45 - 46 */}
 <div className="navfit-row" style={{ display: 'flex', border: '1px solid black', borderTop: 'none', minHeight: '80px' }}>
