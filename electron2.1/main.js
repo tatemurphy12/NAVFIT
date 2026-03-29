@@ -370,6 +370,8 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
         `);
 
         for (const report of reports) {
+            // Normalize ReportType for legacy reports saved before this fix
+            report.ReportType = 'FitRep';
             reportStmt.run(report);
         }
 

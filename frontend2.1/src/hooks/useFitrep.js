@@ -92,7 +92,7 @@ export default function useFitrep(dbPath) {
 
         // 4. Map to strict NAVFIT98 SQLite Schema
         const mappedData = {
-            ReportType: formData.reportType || "Regular",
+            ReportType: "FitRep", // NAVFIT98 requires 'FitRep'; Regular/Concurrent/OpsCdr are separate boolean flags
             FullName: formData.name || "",
             FirstName: firstName, 
             MI: mi,              
