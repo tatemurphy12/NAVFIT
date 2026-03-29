@@ -1490,7 +1490,6 @@ export default function FitrepForm() {
       <div className="navfit-actions" style={{ padding: '10px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
         <button className="save-btn" onClick={() => handleSaveFitrep(currentReportId, setCurrentReportId, dbPath)}>Save Changes</button>
         <button className="pdf-btn" onClick={handlePDFExport} disabled={!isSaved || hasUnsavedChanges}>Export PDF</button>
-        <button className="accdb-btn" onClick={handleACCDBExport} disabled={!isSaved || hasUnsavedChanges}>Export ACCDB</button>
         <button className="sqlite-btn" onClick={handleSQLiteExport}>Export SQLite file</button>
       </div>
 

@@ -135,6 +135,9 @@ export default function HomePage() {
             <button className="btn btn-primary" onClick={handleAddNewReport}>
               + Add Report
             </button>
+            <button className="btn btn-secondary" onClick={() => window.api.exportACCDB(openedDb.path)}>
+              ↓ Export ACCDB
+            </button>
             <button className="btn btn-secondary" onClick={() => window.api.exportDb(openedDb.path)}>
               ↓ Export SQLite
             </button>
