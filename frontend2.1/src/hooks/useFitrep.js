@@ -174,16 +174,16 @@ export default function useFitrep(dbPath) {
             RSSSN: formData.reportSSN ? formData.reportSSN.replace(/-/g, '') : "",
             RSAddress: formData.seniorAddress || "",
 
-            // Trait Scores
-            PROF: formData.proExpert ? parseInt(formData.proExpert, 10) : 0,
+            // Trait Scores (radio values are "1.0"-"5.0", "NOB", or "")
+            PROF: formData.proExpert && formData.proExpert !== "NOB" ? parseInt(formData.proExpert, 10) : 0,
             QUAL: 0, // Not used on W2-O6 forms
-            EO: formData.cmeo ? parseInt(formData.cmeo, 10) : 0,
-            MIL: formData.bearing ? parseInt(formData.bearing, 10) : 0,
-            PA: 0, 
-            TEAM: formData.teamwork ? parseInt(formData.teamwork, 10) : 0,
-            LEAD: formData.leadership ? parseInt(formData.leadership, 10) : 0,
-            MIS: formData.missAccomp ? parseInt(formData.missAccomp, 10) : 0,
-            TAC: formData.tactPerform !== "NOB" && formData.tactPerform ? parseInt(formData.tactPerform, 10) : 0,
+            EO: formData.cmeo && formData.cmeo !== "NOB" ? parseInt(formData.cmeo, 10) : 0,
+            MIL: formData.bearing && formData.bearing !== "NOB" ? parseInt(formData.bearing, 10) : 0,
+            PA: 0,
+            TEAM: formData.teamwork && formData.teamwork !== "NOB" ? parseInt(formData.teamwork, 10) : 0,
+            LEAD: formData.leadership && formData.leadership !== "NOB" ? parseInt(formData.leadership, 10) : 0,
+            MIS: formData.missAccomp && formData.missAccomp !== "NOB" ? parseInt(formData.missAccomp, 10) : 0,
+            TAC: formData.tactPerform && formData.tactPerform !== "NOB" ? parseInt(formData.tactPerform, 10) : 0,
 
             // Other
             Achievements: formData.cmdEmployAch || "",

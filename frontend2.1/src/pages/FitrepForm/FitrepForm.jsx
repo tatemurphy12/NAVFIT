@@ -52,6 +52,16 @@ export default function FitrepForm() {
         return map[val] || '';
     };
 
+    // Convert a DB trait integer (1-5 or 0) to the radio value format ("1.0"-"5.0", "NOB", or "")
+    const traitToRadio = (val) => {
+        if (!val || val === 0 || val === '0') return '';
+        const str = String(val);
+        if (str.toUpperCase() === 'NOB') return 'NOB';
+        const num = parseFloat(str);
+        if (!isNaN(num) && num >= 1 && num <= 5) return num.toFixed(1);
+        return '';
+    };
+
     const populateForm = (data) => {
         setFormData(prev => ({
             ...prev,
@@ -77,13 +87,13 @@ export default function FitrepForm() {
             duties: data.Duties || '',
             dateCounseled: data.DateCounseled || '',
             counselor: data.Counseler || '',
-            proExpert: data.PROF ? data.PROF.toString() : '',
-            cmeo: data.EO ? data.EO.toString() : '',
-            bearing: data.MIL ? data.MIL.toString() : '',
-            teamwork: data.TEAM ? data.TEAM.toString() : '',
-            leadership: data.LEAD ? data.LEAD.toString() : '',
-            missAccomp: data.MIS ? data.MIS.toString() : '',
-            tactPerform: data.TAC ? data.TAC.toString() : '',
+            proExpert: traitToRadio(data.PROF),
+            cmeo: traitToRadio(data.EO),
+            bearing: traitToRadio(data.MIL),
+            teamwork: traitToRadio(data.TEAM),
+            leadership: traitToRadio(data.LEAD),
+            missAccomp: traitToRadio(data.MIS),
+            tactPerform: traitToRadio(data.TAC),
             milestoneOne: data.RecommendA || '',
             milestoneTwo: data.RecommendB || '',
             comments: data.Comments || '',
