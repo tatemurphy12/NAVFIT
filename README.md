@@ -16,7 +16,7 @@ Before running the application, ensure your Linux environment has the following:
 * **Git**: To clone the project from GitLab
 
 ### 3. Downloading the Project
-NAVFIT26 can be downloaded as either an AppImage or .deb installer from https://tuckersmith.github.io/NAVFIT26/
+NAVFIT26 can be downloaded as either an AppImage or .deb installer from https://tatemurphy12.github.io/NAVFIT/
 
 
 ### 4a. Setup & Installation (Linux)
