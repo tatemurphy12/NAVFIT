@@ -167,7 +167,7 @@ ipcMain.handle('save-fitrep', async (e, payload) => {
                     PromotionStatus, DateReported, Periodic, DetInd, Frocking, Special, 
                     FromDate, ToDate, NOB, Regular, Concurrent, OpsCdr, 
                     ReportingSenior, RSGrade, RSDesig, RSTitle, RSUIC, RSSSN, RSAddress,
-                    Achievements, PrimaryDuty, Duties, DateCounseled, 
+                    Achievements, PrimaryDuty, Duties, DateCounseled, Counseler,
                     PROF, QUAL, EO, MIL, PA, TEAM, LEAD, MIS, TAC,
                     RecommendA, RecommendB, Comments, PromotionRecom
                 ) VALUES (
@@ -176,7 +176,7 @@ ipcMain.handle('save-fitrep', async (e, payload) => {
                     @PromotionStatus, @DateReported, @Periodic, @DetInd, @Frocking, @Special,
                     @FromDate, @ToDate, @NOB, @Regular, @Concurrent, @OpsCdr,
                     @ReportingSenior, @RSGrade, @RSDesig, @RSTitle, @RSUIC, @RSSSN, @RSAddress,
-                    @Achievements, @PrimaryDuty, @Duties, @DateCounseled,
+                    @Achievements, @PrimaryDuty, @Duties, @DateCounseled, @Counseler,
                     @PROF, @QUAL, @EO, @MIL, @PA, @TEAM, @LEAD, @MIS, @TAC,
                     @RecommendA, @RecommendB, @Comments, @PromotionRecom
                 )
@@ -194,7 +194,7 @@ ipcMain.handle('save-fitrep', async (e, payload) => {
                     PromotionStatus=@PromotionStatus, DateReported=@DateReported, Periodic=@Periodic, DetInd=@DetInd, Frocking=@Frocking, Special=@Special, 
                     FromDate=@FromDate, ToDate=@ToDate, NOB=@NOB, Regular=@Regular, Concurrent=@Concurrent, OpsCdr=@OpsCdr, 
                     ReportingSenior=@ReportingSenior, RSGrade=@RSGrade, RSDesig=@RSDesig, RSTitle=@RSTitle, RSUIC=@RSUIC, RSSSN=@RSSSN, RSAddress=@RSAddress,
-                    Achievements=@Achievements, PrimaryDuty=@PrimaryDuty, Duties=@Duties, DateCounseled=@DateCounseled, 
+                    Achievements=@Achievements, PrimaryDuty=@PrimaryDuty, Duties=@Duties, DateCounseled=@DateCounseled, Counseler=@Counseler,
                     PROF=@PROF, QUAL=@QUAL, EO=@EO, MIL=@MIL, PA=@PA, TEAM=@TEAM, LEAD=@LEAD, MIS=@MIS, TAC=@TAC,
                     RecommendA=@RecommendA, RecommendB=@RecommendB, Comments=@Comments, PromotionRecom=@PromotionRecom
                 WHERE ReportID = @ReportID
@@ -378,17 +378,17 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
                 PromotionStatus, DateReported, Periodic, DetInd, Frocking, Special,
                 FromDate, ToDate, NOB, Regular, Concurrent, OpsCdr,
                 ReportingSenior, RSGrade, RSDesig, RSTitle, RSUIC, RSSSN, RSAddress,
-                Achievements, PrimaryDuty, Duties, DateCounseled,
+                Achievements, PrimaryDuty, Duties, DateCounseled, Counseler,
                 PROF, QUAL, EO, MIL, PA, TEAM, LEAD, MIS, TAC,
                 RecommendA, RecommendB, Comments, PromotionRecom
             ) VALUES (
                 'a 1',
                 @ReportType, @FullName, @FirstName, @MI, @LastName, @Suffix,
-                @Rate, @Desig, @SSN, 1, @TAR, @Inactive, @ATADSW, @UIC, @ShipStation,
+                @Rate, @Desig, @SSN, @Active, @TAR, @Inactive, @ATADSW, @UIC, @ShipStation,
                 @PromotionStatus, @DateReported, @Periodic, @DetInd, @Frocking, @Special,
                 @FromDate, @ToDate, @NOB, @Regular, @Concurrent, @OpsCdr,
                 @ReportingSenior, @RSGrade, @RSDesig, @RSTitle, @RSUIC, @RSSSN, @RSAddress,
-                @Achievements, @PrimaryDuty, @Duties, @DateCounseled,
+                @Achievements, @PrimaryDuty, @Duties, @DateCounseled, @Counseler,
                 @PROF, @QUAL, @EO, @MIL, @PA, @TEAM, @LEAD, @MIS, @TAC,
                 @RecommendA, @RecommendB, @Comments, @PromotionRecom
             )
@@ -397,6 +397,28 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
         for (const report of reports) {
             // Normalize ReportType for legacy reports saved before this fix
             report.ReportType = 'FitRep';
+
+            // Sanitize integer columns — older saves may contain NaN or null
+            // from parseInt("NOB") which corrupts the ACCDB conversion.
+            // The ACCDB schema requires proper integers (I23) for these columns.
+            const intCols = [
+                'PROF', 'QUAL', 'EO', 'MIL', 'PA', 'TEAM', 'LEAD', 'MIS', 'TAC',
+                'PromotionRecom', 'SummaryRank',
+                'Active', 'TAR', 'Inactive', 'ATADSW',
+                'Periodic', 'DetInd', 'Frocking', 'Special',
+                'NOB', 'Regular', 'Concurrent', 'OpsCdr',
+                'RetentionYes', 'RetentionNo', 'StatementYes', 'StatementNo',
+                'IsValidated'
+            ];
+            for (const col of intCols) {
+                const val = report[col];
+                if (val === undefined || val === null || val === '' || Number.isNaN(val) || Number.isNaN(Number(val))) {
+                    report[col] = 0;
+                } else {
+                    report[col] = parseInt(val, 10) || 0;
+                }
+            }
+
             reportStmt.run(report);
         }
 
