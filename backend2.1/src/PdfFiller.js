@@ -85,6 +85,18 @@ class PdfFiller {
                             field.setFontSize(fontSize);
                         }
                         field.setText(String(value));
+
+                        // For fields with multiple widgets (e.g. Block 1 fields
+                        // that appear on both pages), force Courier font and size
+                        // on every widget so the second-page copy is formatted
+                        // identically to the first.
+                        const widgets = field.acroField.getWidgets();
+                        if (widgets.length > 1) {
+                            for (const widget of widgets) {
+                                widget.setFontSize(fontSize);
+                            }
+                            field.updateAppearances(courierFont);
+                        }
                     }
                 } catch (err) {
                     console.warn(`[PdfFiller] Skipping field '${key}':`, err.message);

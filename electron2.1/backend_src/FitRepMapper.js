@@ -55,7 +55,7 @@ class FitRepMapper {
         // --- Block 28-29: Duties ---
         this.map("f1_28", data.Achievements);
         this.map("f1_29a", data.PrimaryDuty); // Maps to the small Abbrev box
-        this.map("f1_29b", data.Duties);
+        this.map("f1_29b", data.Duties ? String(data.Duties).toUpperCase() : data.Duties);
 
         // --- Block 30-31: Counseling ---
         this.mapDate("f1_30", data.DateCounseled);
