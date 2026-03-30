@@ -39,8 +39,8 @@ jobs:
         with:
           name: navfit26-windows
           path: |
-            electron2.1/dist/*.exe
-            electron2.1/dist/*.msi
+            electron2.1/release/*.exe
+            electron2.1/release/*.msi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
