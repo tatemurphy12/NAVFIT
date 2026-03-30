@@ -30,12 +30,13 @@ const PromoRec = ({ label, subLabel, name, value, setter }) => {
           /* borderRight here creates the vertical grid lines */
           borderRight: '1px solid black' 
         }}>
-          <input 
-            type="radio" 
-            name={name} 
-            value={val} 
-            checked={value === val} 
-            onChange={(e) => setter(e.target.value)} 
+          <input
+            type="radio"
+            name={name}
+            value={val}
+            checked={value === val}
+            onChange={(e) => setter(e.target.value)}
+            onClick={() => { if (value === val) setter(''); }}
           />
         </div>
       ))}

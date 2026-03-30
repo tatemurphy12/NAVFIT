@@ -1,5 +1,5 @@
 const fs = require('fs');
-const { PDFDocument, PDFCheckBox, PDFTextField, StandardFonts } = require('pdf-lib');
+const { PDFDocument, PDFCheckBox, PDFTextField, StandardFonts, rgb } = require('pdf-lib');
 
 /**
  * PdfFiller
@@ -24,8 +24,13 @@ class PdfFiller {
             const pdfDoc = await PDFDocument.load(templateBytes);
             const form = pdfDoc.getForm();
 
-            // Embed a default font for fields that are missing a /DA entry
-            const defaultFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            // Embed Courier as the standard font for all fields
+            const courierFont = await pdfDoc.embedFont(StandardFonts.Courier);
+
+            // Determine the font size for the comments box (default 10, configurable via jsonData)
+            const commentsFontSize = jsonData._commentsFontSize || 10;
+            // Remove the meta key so it doesn't get mapped to a PDF field
+            delete jsonData._commentsFontSize;
 
             // 2. Iterate through data and map to fields
             for (const [key, value] of Object.entries(jsonData)) {
@@ -33,20 +38,51 @@ class PdfFiller {
                     const field = form.getField(key);
 
                     if (field instanceof PDFCheckBox) {
-                        // Checkbox Logic: Check if value is 'Yes'
+                        // Checkbox Logic: Draw an 'X' character instead of a filled square
                         if (value === 'Yes') {
-                            field.check();
-                        } else {
-                            field.uncheck();
+                            // Get the checkbox widget to find its position and size
+                            const widgets = field.acroField.getWidgets();
+                            for (const widget of widgets) {
+                                const rect = widget.getRectangle();
+                                // Find which page this widget is on
+                                const pages = pdfDoc.getPages();
+                                for (const page of pages) {
+                                    const pageRef = page.ref;
+                                    const annotRefs = page.node.Annots();
+                                    if (annotRefs) {
+                                        const annots = annotRefs.asArray ? annotRefs.asArray() : [];
+                                        for (const annotRef of annots) {
+                                            const resolved = pdfDoc.context.lookupMaybe(annotRef);
+                                            if (resolved === widget.dict) {
+                                                // Draw 'X' centered in the checkbox rectangle
+                                                const xFontSize = Math.min(rect.width, rect.height) * 0.85;
+                                                page.drawText('X', {
+                                                    x: rect.x + (rect.width - xFontSize * 0.6) / 2,
+                                                    y: rect.y + (rect.height - xFontSize) / 2 + xFontSize * 0.15,
+                                                    size: xFontSize,
+                                                    font: courierFont,
+                                                    color: rgb(0, 0, 0),
+                                                });
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            // Don't call field.check() — we drew the X manually
                         }
+                        // For unchecked, do nothing (leave blank)
                     } else if (field instanceof PDFTextField) {
-                        // Set font size, falling back to updating the default
+                        // Use the comments font size for the comments field, 10pt for everything else
+                        const fontSize = (key === 'f1_41') ? commentsFontSize : 10;
+                        // Set Courier font and size, falling back to updating the default
                         // appearance first for fields missing a /DA entry
                         try {
-                            field.setFontSize(10);
+                            field.updateAppearances(courierFont);
+                            field.setFontSize(fontSize);
                         } catch (_) {
-                            field.defaultUpdateAppearances(defaultFont);
-                            field.setFontSize(10);
+                            field.defaultUpdateAppearances(courierFont);
+                            field.setFontSize(fontSize);
                         }
                         field.setText(String(value));
                     }

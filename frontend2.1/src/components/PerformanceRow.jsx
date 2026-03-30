@@ -18,20 +18,21 @@ const PerformanceRow = ({ label, subLabel, name, value, setter, standards }) => 
         {subLabel}
       </span>
       
-      <div style={{ 
-        marginTop: 'auto', 
-        alignSelf: 'flex-end', 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '5px' 
+      <div style={{
+        marginTop: 'auto',
+        alignSelf: 'flex-end',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '5px'
       }}>
         <label style={{ fontWeight: 'normal', margin: 0 }}>NOB</label>
-        <input 
-          type="radio" 
-          name={name} 
-          value="NOB" 
-          checked={value === 'NOB'} 
-          onChange={(e) => setter(e.target.value)} 
+        <input
+          type="radio"
+          name={name}
+          value="NOB"
+          checked={value === 'NOB'}
+          onChange={(e) => setter(e.target.value)}
+          onClick={() => { if (value === 'NOB') setter(''); }}
         />
       </div>
     </div>
@@ -62,12 +63,13 @@ const PerformanceRow = ({ label, subLabel, name, value, setter, standards }) => 
         
         {/* Radio Button Container */}
         <div style={{ marginTop: 'auto', alignSelf: 'flex-end', padding: '2px' }}>
-          <input 
-            type="radio" 
-            name={name} 
-            value={col.val} 
-            checked={value === col.val} 
-            onChange={(e) => setter(e.target.value)} 
+          <input
+            type="radio"
+            name={name}
+            value={col.val}
+            checked={value === col.val}
+            onChange={(e) => setter(e.target.value)}
+            onClick={() => { if (value === col.val) setter(''); }}
           />
         </div>
       </div>

@@ -280,12 +280,13 @@ export default function FitrepForm() {
           <div className="radio-group" style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
             {['ACT', 'FTS', 'INACT', 'AT/ADSW/'].map((status) => (
               <label key={status} className="radio-label" style={{display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <input 
-                  type="radio" 
+                <input
+                  type="radio"
                   name="dutyStatus"
-                  value={status} 
-                  checked={formData.dutyStatus === status} 
+                  value={status}
+                  checked={formData.dutyStatus === status}
                   onChange={(e) => handleChange('dutyStatus', e.target.value)}
+                  onClick={() => { if (formData.dutyStatus === status) handleChange('dutyStatus', ''); }}
                 /> 
                 {status}
               </label>
@@ -403,7 +404,7 @@ export default function FitrepForm() {
           {/* 10. Periodic */}
           <label className="radio-label" style={{display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
             <span>10. Periodic</span>
-            <input type="radio" value="Periodic" checked={formData.occasion === 'Periodic'} onChange={(e) => handleChange('occasion', e.target.value)} /> 
+            <input type="radio" value="Periodic" checked={formData.occasion === 'Periodic'} onChange={(e) => handleChange('occasion', e.target.value)} onClick={() => { if (formData.occasion === 'Periodic') handleChange('occasion', ''); }} /> 
           </label>
           
         {/* 11. Detachment of Individual */}
@@ -419,9 +420,10 @@ export default function FitrepForm() {
         </span>
         <input 
           type="radio" 
-          value="Detachment of Individual" 
-          checked={formData.occasion === 'Detachment of Individual'} 
-          onChange={(e) => handleChange('occasion', e.target.value)} 
+          value="Detachment of Individual"
+          checked={formData.occasion === 'Detachment of Individual'}
+          onChange={(e) => handleChange('occasion', e.target.value)}
+          onClick={() => { if (formData.occasion === 'Detachment of Individual') handleChange('occasion', ''); }}
           style={{ marginTop: '1px', cursor: 'pointer' }} 
         /> 
       </label>
@@ -439,9 +441,10 @@ export default function FitrepForm() {
         </span>
         <input 
           type="radio" 
-          value="Detachment of Reporting Senior" 
-          checked={formData.occasion === 'Detachment of Reporting Senior'} 
-          onChange={(e) => handleChange('occasion', e.target.value)} 
+          value="Detachment of Reporting Senior"
+          checked={formData.occasion === 'Detachment of Reporting Senior'}
+          onChange={(e) => handleChange('occasion', e.target.value)}
+          onClick={() => { if (formData.occasion === 'Detachment of Reporting Senior') handleChange('occasion', ''); }}
           style={{ marginTop: '1px', cursor: 'pointer' }} 
         /> 
       </label>
@@ -449,7 +452,7 @@ export default function FitrepForm() {
           {/* 13. Special */}
           <label className="radio-label" style={{display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
             <span>13. Special</span>
-            <input type="radio" value="Special" checked={formData.occasion === 'Special'} onChange={(e) => handleChange('occasion', e.target.value)} /> 
+            <input type="radio" value="Special" checked={formData.occasion === 'Special'} onChange={(e) => handleChange('occasion', e.target.value)} onClick={() => { if (formData.occasion === 'Special') handleChange('occasion', ''); }} /> 
           </label>
         </div>
       </div>
@@ -539,10 +542,11 @@ export default function FitrepForm() {
       }}>
         <label className="radio-label" style={{ cursor: 'pointer', display: 'flex' }}>
           <input 
-            type="radio" 
-            value="Not Observed Report" 
-            checked={formData.notObserved === 'Not Observed Report'} 
-            onChange={(e) => handleChange('notObserved', e.target.value)} 
+            type="radio"
+            value="Not Observed Report"
+            checked={formData.notObserved === 'Not Observed Report'}
+            onChange={(e) => handleChange('notObserved', e.target.value)}
+            onClick={() => { if (formData.notObserved === 'Not Observed Report') handleChange('notObserved', ''); }}
             style={{ margin: 0 }}
           />
         </label>
@@ -566,11 +570,12 @@ export default function FitrepForm() {
         <label className="radio-label" style={{whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
           <span>17. Regular</span>
           <input 
-            type="radio" 
+            type="radio"
             name="reportType"
-            value="Regular" 
-            checked={formData.reportType === 'Regular'} 
-            onChange={(e) => handleChange('reportType', e.target.value)} 
+            value="Regular"
+            checked={formData.reportType === 'Regular'}
+            onChange={(e) => handleChange('reportType', e.target.value)}
+            onClick={() => { if (formData.reportType === 'Regular') handleChange('reportType', ''); }} 
           />
         </label>
         
@@ -578,11 +583,12 @@ export default function FitrepForm() {
         <label className="radio-label" style={{whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
           <span>18. Concurrent</span>
           <input 
-            type="radio" 
+            type="radio"
             name="reportType"
-            value="Concurrent" 
-            checked={formData.reportType === 'Concurrent'} 
-            onChange={(e) => handleChange('reportType', e.target.value)} 
+            value="Concurrent"
+            checked={formData.reportType === 'Concurrent'}
+            onChange={(e) => handleChange('reportType', e.target.value)}
+            onClick={() => { if (formData.reportType === 'Concurrent') handleChange('reportType', ''); }} 
           />
         </label>
         
@@ -590,11 +596,12 @@ export default function FitrepForm() {
         <label className="radio-label" style={{whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
           <span>19. Ops Cdr</span>
           <input 
-            type="radio" 
+            type="radio"
             name="reportType"
-            value="Ops Cdr" 
-            checked={formData.reportType === 'Ops Cdr'} 
-            onChange={(e) => handleChange('reportType', e.target.value)} 
+            value="Ops Cdr"
+            checked={formData.reportType === 'Ops Cdr'}
+            onChange={(e) => handleChange('reportType', e.target.value)}
+            onClick={() => { if (formData.reportType === 'Ops Cdr') handleChange('reportType', ''); }} 
           />
         </label>
       </div>
@@ -1443,11 +1450,12 @@ export default function FitrepForm() {
     <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
       I intend to submit a statement.
       <input 
-        type="radio" 
-        name="statementOption" 
-        value="submitted" 
-        checked={formData.statementOption === 'submitted'} 
-        onChange={(e) => handleChange('statementOption', e.target.value)} 
+        type="radio"
+        name="statementOption"
+        value="submitted"
+        checked={formData.statementOption === 'submitted'}
+        onChange={(e) => handleChange('statementOption', e.target.value)}
+        onClick={() => { if (formData.statementOption === 'submitted') handleChange('statementOption', ''); }}
         style={{ margin: 0 }}
       />
     </label>
@@ -1455,11 +1463,12 @@ export default function FitrepForm() {
     <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
       I do not intend to submit a statement.
       <input 
-        type="radio" 
-        name="statementOption" 
-        value="none" 
-        checked={formData.statementOption === 'none'} 
-        onChange={(e) => handleChange('statementOption', e.target.value)} 
+        type="radio"
+        name="statementOption"
+        value="none"
+        checked={formData.statementOption === 'none'}
+        onChange={(e) => handleChange('statementOption', e.target.value)}
+        onClick={() => { if (formData.statementOption === 'none') handleChange('statementOption', ''); }}
         style={{ margin: 0 }}
       />
     </label>

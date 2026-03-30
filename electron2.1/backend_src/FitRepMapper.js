@@ -12,7 +12,7 @@ class FitRepMapper {
         this.map("f1_01", data.FullName);
         this.map("f1_02", data.Rate);
         this.map("f1_03", data.Desig);
-        this.map("f1_04", data.SSN);
+        this.map("f1_04", this.formatSSN(data.SSN));
 
         // --- Block 5: Status (CHECKBOXES -> "Yes") ---
         if (data.Active)   this.pdfMap["f1_05_ACT"]     = "Yes";
@@ -50,7 +50,7 @@ class FitRepMapper {
         this.map("f1_24", data.RSDesig);
         this.map("f1_25", data.RSTitle);
         this.map("f1_26", data.RSUIC);
-        this.map("f1_27", data.RSSSN);
+        this.map("f1_27", this.formatSSN(data.RSSSN));
 
         // --- Block 28-29: Duties ---
         this.map("f1_28", data.Achievements);
@@ -109,6 +109,20 @@ class FitRepMapper {
     }
 
     // --- Helpers ---
+
+    /**
+     * Formats a raw SSN string (e.g. "123456789") into dashed format "123-45-6789".
+     * If already formatted or not 9 digits, returns as-is.
+     */
+    formatSSN(rawSSN) {
+        if (!rawSSN) return rawSSN;
+        // Strip any existing dashes/spaces to normalize
+        const digits = String(rawSSN).replace(/[\s-]/g, '');
+        if (digits.length === 9 && /^\d{9}$/.test(digits)) {
+            return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+        }
+        return String(rawSSN); // Return as-is if not a clean 9-digit SSN
+    }
 
     map(field, value) {
         if (value !== undefined && value !== null) {
