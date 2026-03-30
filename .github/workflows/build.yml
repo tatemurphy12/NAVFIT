@@ -47,7 +47,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            electron2.1/dist/*.exe
-            electron2.1/dist/*.msi
+            electron2.1/release/*.exe
+            electron2.1/release/*.msi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
