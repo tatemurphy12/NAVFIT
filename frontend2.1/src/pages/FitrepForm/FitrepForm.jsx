@@ -41,7 +41,8 @@ export default function FitrepForm() {
     isSaved,
     hasUnsavedChanges, 
     handleACCDBExport,
-    getError
+    getError,
+    raterGroupSummary
   } = useFitrep(dbPath);
 
   // Pre-fill data if editing an existing report
@@ -1413,10 +1414,10 @@ export default function FitrepForm() {
           whiteSpace: 'nowrap'  /* Prevents the text from jumping to two lines */
         }}>
           <span style={{marginRight: '4px' }}>Summary Group Average:</span>
-          <input 
-            style={{ border: 'none', width: '30px'}} 
-            value={"NaN"}
-            readOnly 
+          <input
+            style={{ border: 'none', width: '40px'}}
+            value={raterGroupSummary?.summaryGroupAverage || 'NAN'}
+            readOnly
           />
         </div>
       </div>

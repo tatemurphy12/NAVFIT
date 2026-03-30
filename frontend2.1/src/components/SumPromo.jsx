@@ -37,20 +37,20 @@ const SumPromo = ({ label, subLabel, value, setter }) => {
               borderRight: '1px solid black' 
             }}>
               {!isNob ? (
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   maxLength="3"
-                  value={value[field] || ''} 
-                  onChange={(e) => handleInputChange(field, e.target.value)} 
+                  value={value?.[field] || '0'}
+                  readOnly
                   className="navfit-input"
-                  style={{ 
-                    textAlign: 'center', 
-                    width: '100%', 
-                    background: 'transparent', 
+                  style={{
+                    textAlign: 'center',
+                    width: '100%',
+                    background: '#f0f0f0',
                     border: 'none',
-                    outline: 'none'
+                    outline: 'none',
+                    cursor: 'default'
                   }}
-                  placeholder="0"
                 />
               ) : (
                 <div style={{ width: '100%', height: '100%' }} className="blackout-pattern" />

@@ -25,6 +25,41 @@ export default function useFitrep(dbPath) {
     const [isSaved, setIsSaved] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+    // RATER GROUP SUMMARY (computed from all reports in the database)
+    const [raterGroupSummary, setRaterGroupSummary] = useState({
+        summaryGroupAverage: 'NAN',
+        promoCounts: { sigProb: 0, prog: 0, promotable: 0, mustPromote: 0, earlyPromote: 0 }
+    });
+
+    // Fetch rater group summary from all reports in the database
+    const fetchRaterGroupSummary = async () => {
+        if (!dbPath || !window.api?.getRaterGroupSummary) return;
+        try {
+            const result = await window.api.getRaterGroupSummary(dbPath);
+            if (result && !result.error) {
+                setRaterGroupSummary(result);
+                // Auto-fill the summary promo counts into the form
+                setFormData(prev => ({
+                    ...prev,
+                    sumPromo: {
+                        sigProb: String(result.promoCounts.sigProb || 0),
+                        prog: String(result.promoCounts.prog || 0),
+                        promotable: String(result.promoCounts.promotable || 0),
+                        mustPromote: String(result.promoCounts.mustPromote || 0),
+                        earlyPromote: String(result.promoCounts.earlyPromote || 0),
+                    }
+                }));
+            }
+        } catch (err) {
+            console.warn('[useFitrep] Failed to fetch rater group summary:', err);
+        }
+    };
+
+    // Fetch the rater group summary when the database path is available
+    useEffect(() => {
+        fetchRaterGroupSummary();
+    }, [dbPath]);
+
     const triggerNotification = (title, text, isError = false) => {
         setModalContent({ title, text, isError });
         setShowModal(true);
@@ -190,8 +225,11 @@ export default function useFitrep(dbPath) {
                 
                 // Note: Ensure setSelectedReport doesn't break if you removed it from your hook
                 if (typeof setSelectedReport === 'function') {
-                    setSelectedReport(mappedData); 
+                    setSelectedReport(mappedData);
                 }
+
+                // Refresh rater group summary after save (counts may have changed)
+                fetchRaterGroupSummary();
             } else {
                 triggerNotification("Error", result.error, true);
             }
@@ -259,6 +297,7 @@ export default function useFitrep(dbPath) {
             SummaryProm: formData.sumPromo?.promotable || "",
             SummaryMP: formData.sumPromo?.mustPromote || "",
             SummaryEP: formData.sumPromo?.earlyPromote || "",
+            RSCA: raterGroupSummary?.summaryGroupAverage || "",
         };
         const result = await window.api.exportPDF(exportData);
         if (result.success) {
@@ -327,6 +366,7 @@ export default function useFitrep(dbPath) {
     return {
         formData, setFormData, message, setMessage, showModal, setShowModal, modalContent,
         handleChange, handlePDFExport, calculateTraitAverage, handleSaveFitrep,
-        handleACCDBExport, handleSQLiteExport, isSaved, hasUnsavedChanges, getError
+        handleACCDBExport, handleSQLiteExport, isSaved, hasUnsavedChanges, getError,
+        raterGroupSummary
     };
 }

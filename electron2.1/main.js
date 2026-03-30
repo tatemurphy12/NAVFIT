@@ -261,6 +261,70 @@ ipcMain.handle('deleteFitrep', async (e, { dbPath, reportId }) => {
     }
 });
 
+// Compute rater group summary from all reports in the database.
+// Returns the summary group average (average of all member trait averages)
+// and the count of each promotion recommendation category.
+ipcMain.handle('getRaterGroupSummary', async (e, dbPath) => {
+    try {
+        if (!dbPath || !fs.existsSync(dbPath)) {
+            return { error: "Database not found" };
+        }
+        const db = new Database(dbPath, { readonly: true });
+
+        // Pull trait columns for every report
+        const rows = db.prepare(`
+            SELECT PROF, QUAL, EO, MIL, TEAM, LEAD, MIS, TAC, PromotionRecom
+            FROM [Reports]
+        `).all();
+        db.close();
+
+        if (!rows || rows.length === 0) {
+            return {
+                summaryGroupAverage: 'NAN',
+                promoCounts: { sigProb: 0, prog: 0, promotable: 0, mustPromote: 0, earlyPromote: 0 }
+            };
+        }
+
+        // 1. Compute each report's member trait average, then average them all
+        const memberAverages = [];
+        const promoCounts = { sigProb: 0, prog: 0, promotable: 0, mustPromote: 0, earlyPromote: 0 };
+
+        for (const row of rows) {
+            // Calculate individual member trait average
+            const traits = [row.PROF, row.QUAL, row.EO, row.MIL, row.TEAM, row.LEAD, row.MIS, row.TAC];
+            let sum = 0;
+            let count = 0;
+            for (const t of traits) {
+                const val = parseFloat(t);
+                if (!isNaN(val) && val > 0) {
+                    sum += val;
+                    count++;
+                }
+            }
+            if (count > 0) {
+                memberAverages.push(sum / count);
+            }
+
+            // 2. Tally promotion recommendation counts
+            const promo = parseInt(row.PromotionRecom);
+            if (promo === 1) promoCounts.sigProb++;
+            else if (promo === 2) promoCounts.prog++;
+            else if (promo === 3) promoCounts.promotable++;
+            else if (promo === 4) promoCounts.mustPromote++;
+            else if (promo === 5) promoCounts.earlyPromote++;
+        }
+
+        const summaryGroupAverage = memberAverages.length > 0
+            ? (memberAverages.reduce((a, b) => a + b, 0) / memberAverages.length).toFixed(2)
+            : 'NAN';
+
+        return { summaryGroupAverage, promoCounts };
+    } catch (err) {
+        console.error("Error computing rater group summary:", err);
+        return { error: err.message };
+    }
+});
+
 // Export ACCDB (Java trigger)
 // Creates a clean temporary SQLite copy with NAVFIT98-compatible structure,
 // hands it to the Java converter, then cleans up the temp file.

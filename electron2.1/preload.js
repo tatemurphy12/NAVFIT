@@ -13,4 +13,5 @@ contextBridge.exposeInMainWorld('api', {
     loadFitrep: (data) => ipcRenderer.invoke('loadFitrep', data),
     deleteFitrep: (data) => ipcRenderer.invoke('deleteFitrep', data),
     removeDatabase: (dbPath) => ipcRenderer.invoke('removeDatabase', dbPath),
+    getRaterGroupSummary: (dbPath) => ipcRenderer.invoke('getRaterGroupSummary', dbPath),
 });
