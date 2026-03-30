@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Modern version of NAVFIT98A",
   "homepage": "https://github.com/tatemurphy12/navfit26",
+  "repository": "https://github.com/tatemurphy12/navfit26",
   "main": "main.js",
   "author": "Tate Murphy <jtatemurphy@gmail.com>",
   "license": "ISC",
