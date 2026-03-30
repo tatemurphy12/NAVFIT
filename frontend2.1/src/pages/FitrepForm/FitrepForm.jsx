@@ -48,7 +48,7 @@ export default function FitrepForm() {
   // Pre-fill data if editing an existing report
   useEffect(() => {
     const intToPromoRec = (val) => {
-        const map = { 0: 'NOB', 1: 'Significant Problems', 2: 'Progressing', 3: 'Promotable', 4: 'Must Promote', 5: 'Early Promote' };
+        const map = { 0: 'NOB', 1: 'SIGNIFICANT PROBLEMS', 2: 'PROGRESSING', 3: 'PROMOTABLE', 4: 'MUST PROMOTE', 5: 'EARLY PROMOTE' };
         return map[val] || '';
     };
 

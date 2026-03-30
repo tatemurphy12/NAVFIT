@@ -121,7 +121,7 @@ export default function useFitrep(dbPath) {
 
         // 3. Helper to convert Promotion text to Integer
         const promoRecToInt = (val) => {
-            const map = { 'NOB': 0, 'Significant Problems': 1, 'Progressing': 2, 'Promotable': 3, 'Must Promote': 4, 'Early Promote': 5 };
+            const map = { 'NOB': 0, 'SIGNIFICANT PROBLEMS': 1, 'PROGRESSING': 2, 'PROMOTABLE': 3, 'MUST PROMOTE': 4, 'EARLY PROMOTE': 5 };
             return map[val] ?? null;
         };
 
@@ -289,7 +289,7 @@ export default function useFitrep(dbPath) {
             RecommendB: formData.milestoneTwo || "",
             Comments: formData.comments || "",
             PromotionRecom: (() => {
-                const map = { 'NOB': 1, 'Significant Problems': 2, 'Progressing': 3, 'Promotable': 4, 'Must Promote': 5, 'Early Promote': 6 };
+                const map = { 'NOB': 1, 'SIGNIFICANT PROBLEMS': 2, 'PROGRESSING': 3, 'PROMOTABLE': 4, 'MUST PROMOTE': 5, 'EARLY PROMOTE': 6 };
                 return map[formData.promotion] || "";
             })(),
             SummarySP: formData.sumPromo?.sigProb || "",
