@@ -48,7 +48,8 @@
 
     <script>
         async function getLatestRelease() {
-            const repo = "TuckerSmith/NAVFIT26";
+            // Logic updated to new repository: tatemurphy12/NAVFIT
+            const repo = "tatemurphy12/NAVFIT"; 
             try {
                 const response = await fetch(`https://api.github.com/repos/${repo}/releases/latest`);
                 const data = await response.json();
