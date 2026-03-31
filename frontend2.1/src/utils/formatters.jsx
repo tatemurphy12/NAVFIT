@@ -34,14 +34,17 @@ name: (val) => {
     };
   },
 
-  // Block 4
+  // Block 4: SSN
   ssn: (val) => {
-    if (!val) return { isError: false, note: "" };
-    // Check if it matches the full 000-00-0000 pattern
-    const isValid = /^\d{3}-\d{2}-\d{4}$/.test(val);
+    // If the field is empty, don't show an error
+    if (!val || val.length === 0) return { isError: false, note: "" };
+
+    // Strict regex: exactly 3 digits, dash, 2 digits, dash, 4 digits
+    const isStrictFormat = /^\d{3}-\d{2}-\d{4}$/.test(val);
+
     return { 
-      isError: !isValid, 
-      note: isValid ? "" : "SSN must be 9 digits" 
+      isError: !isStrictFormat, 
+      note: isStrictFormat ? "" : "Required format: 000-00-0000"
     };
   },
   
@@ -185,14 +188,17 @@ toPeriod: (val, formData) => {
     };
   },
 
-  // Block 27
+  // Block 27: SSN 
   reportSSN: (val) => {
-    if (!val) return { isError: false, note: "" };
-    // Check for the full 9-digit pattern with dashes
-    const isValid = /^\d{3}-\d{2}-\d{4}$/.test(val);
+    // If the field is empty, don't show an error
+    if (!val || val.length === 0) return { isError: false, note: "" };
+
+    // Strict regex: exactly 3 digits, dash, 2 digits, dash, 4 digits
+    const isStrictFormat = /^\d{3}-\d{2}-\d{4}$/.test(val);
+
     return { 
-      isError: !isValid, 
-      note: isValid ? "" : "SSN must be 9 digits" 
+      isError: !isStrictFormat, 
+      note: isStrictFormat ? "" : "Required format: 000-00-0000"
     };
   },
 

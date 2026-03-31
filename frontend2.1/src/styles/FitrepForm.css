@@ -31,7 +31,7 @@
 .navfit-textarea {
   font-family: var(--navy-font) !important;
   font-size: var(--fitrep-master-size); 
-  font-weight: bold;
+  font-weight: normal;
   text-transform: uppercase;
   border: none !important;
   outline: none !important;
@@ -127,4 +127,19 @@ input[type="radio"]:checked::after {
 /* Hover state */
 input[type="radio"]:hover {
   background-color: #f0f0f0 !important;
+}
+
+/* Update these specific login rules in App.css */
+.login-input {
+  border: 2px solid black !important;
+  padding: 12px !important;
+  font-family: monospace; /* Matches the "X" style of your radio buttons */
+  letter-spacing: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.login-card {
+  border: 3px solid black; /* Thicker border for the access gate */
+  padding: 50px 30px;
 }

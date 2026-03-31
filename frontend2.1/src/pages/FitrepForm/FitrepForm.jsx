@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../../styles/FitrepForm.css'; 
@@ -9,8 +7,10 @@ import SumPromo from '../../components/SumPromo';
 import PromoRec from '../../components/PromoRec';
 import { FITREP_CONFIG, TRAIT_STANDARDS } from '../../constants/fitrepConfig';
 import useFitrep from '../../hooks/useFitrep';
+import Login from '../../components/Login';
 
 export default function FitrepForm() {
+
   const location = useLocation();
   const navigate = useNavigate();
     
@@ -174,10 +174,18 @@ export default function FitrepForm() {
         </button>
       </div>
 
-      {/* HEADER SECTION */}
-      <div className="navfit-header">
-        <h1>FITNESS REPORT & COUNSELING RECORD (W2-O6)</h1>
-      </div>
+     {/* HEADER SECTION */}
+    <div className="navfit-header" style={{ textAlign: 'center', padding: '15px 0' }}>
+      <h1 style={{ 
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        fontSize: '24px',                            
+        fontWeight: '800',                         
+        letterSpacing: '1px',                        
+        margin: 0                
+      }}>
+        FITNESS REPORT & COUNSELING RECORD (W2-O6)
+      </h1>
+    </div>
 
     <div className="navfit-row" style={{ borderLeft: '1px solid black', borderRight: '1px solid black', borderTop: '1px solid black', borderBottom: 'none' }}>
       {/* BLOCKS 1-4: THE TOP ROW */}
@@ -257,27 +265,19 @@ export default function FitrepForm() {
         <input 
           className="navfit-input"
           value={formData.ssn} 
-          placeholder="   -  -  "
           onChange={(e) => {
-            // 1. Strip all non-digits
-            let val = e.target.value.replace(/\D/g, '');
-            if (val.length > 9) val = val.slice(0, 9);
-            
-            // 2. Apply the Navy/Standard SSN mask (000-00-0000)
-            const masked = val
-              .replace(/^(\d{3})(\d)/, '$1-$2')
-              .replace(/^(\d{3})-(\d{2})(\d)/, '$1-$2-$3');
-            
-            // 3. Update the state
-            handleChange('ssn', masked);
+            // Allow only digits and hyphens
+            let val = e.target.value.replace(/[^0-9-]/g, '');
+            if (val.length > 11) val = val.slice(0, 11);
+            handleChange('ssn', val);
           }}
         />
-        
-        {/* If the SSN is incomplete (less than 11 characters including dashes), show the note */}
+
+        {/* Display the error message below the input */}
         {getError('ssn').isError && (
-          <div className="error-note">
+          <span className="error-note">
             {getError('ssn').note}
-          </div>
+          </span>
         )}
       </div>
       </div>
@@ -819,33 +819,28 @@ export default function FitrepForm() {
       >
         <label>27. SSN</label>
         <input 
-          type="text" 
-          className="navfit-input" 
-          value={formData.reportSSN} 
-          placeholder="   - -"
+          className="navfit-input"
+          value={formData.reportSSN || ""} /* Added || "" to prevent controlled/uncontrolled warnings */
           onChange={(e) => {
-            // 1. Strip all non-digits
-            let val = e.target.value.replace(/\D/g, '');
-            if (val.length > 9) val = val.slice(0, 9);
+            // 1. Filter the input
+            let val = e.target.value.replace(/[^0-9-]/g, '');
             
-            // 2. Apply the SSN mask (000-00-0000)
-            const masked = val
-              .replace(/^(\d{3})(\d)/, '$1-$2')
-              .replace(/^(\d{3})-(\d{2})(\d)/, '$1-$2-$3');
+            // 2. Cap the length
+            if (val.length > 11) val = val.slice(0, 11);
             
-            // 3. Update the CORRECT field in state
-            handleChange('reportSSN', masked);
+            // 3. FIX: Use 'val', not 'masked'
+            handleChange('reportSSN', val);
           }}
         />
 
-        {/* Validator note for the 9-digit count */}
+        {/* Display the error message */}
         {getError('reportSSN').isError && (
-          <div className="error-note">
+          <span className="error-note">
             {getError('reportSSN').note}
-          </div>
+          </span>
         )}
       </div>
-    </div>
+      </div>
 
     {/* BLOCK 28: COMMAND EMPLOYMENT AND ACHIEVEMENTS */}
     <div 
