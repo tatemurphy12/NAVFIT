@@ -53,11 +53,21 @@ jobs:
       - name: Create Metadata File
         shell: pwsh
         run: |
+          # Use Environment Variables to ensure they are being read correctly
+          $endpoint = "${{ vars.ARTIFACT_ENDPOINT }}"
+          $account = "${{ vars.ARTIFACT_ACCOUNT_NAME }}"
+          $profile = "${{ vars.ARTIFACT_PROFILE_NAME }}"
+
+          # Validate that they aren't empty
+          if ([string]::IsNullOrWhiteSpace($endpoint)) { Write-Error "❌ ARTIFACT_ENDPOINT variable is missing!"; exit 1 }
+          
           $metadata = @{
-              Endpoint = "${{ vars.ARTIFACT_ENDPOINT }}"
-              CodeSigningAccountName = "${{ vars.ARTIFACT_ACCOUNT_NAME }}"
-              CertificateProfileName = "${{ vars.ARTIFACT_PROFILE_NAME }}"
+              Endpoint = $endpoint
+              CodeSigningAccountName = $account
+              CertificateProfileName = $profile
           }
+          
+          Write-Host "Constructing metadata for account: $account"
           $metadata | ConvertTo-Json | Out-File -FilePath metadata.json -Encoding utf8
 
       # 4. Sign the output files
