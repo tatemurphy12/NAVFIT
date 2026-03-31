@@ -27,9 +27,9 @@ jobs:
       - name: Verify Variables
         shell: pwsh
         run: |
-          Write-Host "Endpoint: ${{ secrets.ARTIFACT_ENDPOINT }}"
-          Write-Host "Account: ${{ secrets.ARTIFACT_ACCOUNT_NAME }}"
-          if ([string]::IsNullOrWhiteSpace("${{ secrets.ARTIFACT_ENDPOINT }}")) { 
+          Write-Host "Endpoint: ${{ vars.ARTIFACT_ENDPOINT }}"
+          Write-Host "Account: ${{ vars.ARTIFACT_ACCOUNT_NAME }}"
+          if ([string]::IsNullOrWhiteSpace("${{ vars.ARTIFACT_ENDPOINT }}")) { 
             Write-Error "Variable is EMPTY! Check GitHub Variables tab."; exit 1 
           }
   build-and-sign:
