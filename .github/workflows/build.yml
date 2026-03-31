@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build, Sign, and Release
 on:
   push:
     branches:
@@ -6,15 +6,24 @@ on:
     tags:
       - 'v*'
 
-jobs:
-  build:
-    runs-on: windows-latest
-    permissions:
-      contents: write
+permissions:
+  id-token: write  # Required for Azure OIDC
+  contents: write  # Required for GitHub Releases
 
+jobs:
+  build-and-sign:
+    runs-on: windows-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      # 1. Login to Azure first
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -26,6 +35,7 @@ jobs:
             frontend2.1/package-lock.json
             electron2.1/package-lock.json
 
+      # 2. Build the app using your project's specific scripts
       - name: Install All Dependencies
         run: npm run install-all
 
@@ -34,10 +44,46 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # 3. Setup the Signing Tools
+      - name: Download Artifact Signing Client
+        shell: pwsh
+        run: |
+          nuget install Microsoft.ArtifactSigning.Client -OutputDirectory ./signing-tools -ExcludeVersion
+
+      - name: Create Metadata File
+        shell: pwsh
+        run: |
+          $metadata = @{
+              Endpoint = "${{ vars.ARTIFACT_ENDPOINT }}"
+              CodeSigningAccountName = "${{ vars.ARTIFACT_ACCOUNT_NAME }}"
+              CertificateProfileName = "${{ vars.ARTIFACT_PROFILE_NAME }}"
+          }
+          $metadata | ConvertTo-Json | Out-File -FilePath metadata.json -Encoding utf8
+
+      # 4. Sign the output files
+      - name: Sign Installer
+        shell: pwsh
+        run: |
+          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter signtool.exe -Recurse | Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1 -ExpandProperty FullName
+          $dlibPath = "signing-tools/Microsoft.ArtifactSigning.Client/runtimes/win-x64/native/Azure.CodeSigning.Dlib.dll"
+          
+          # Sign both .exe and .msi if they exist
+          $filesToSign = Get-ChildItem -Path "electron2.1/release/*.exe", "electron2.1/release/*.msi"
+          
+          foreach ($file in $filesToSign) {
+            Write-Host "Signing $($file.FullName)..."
+            & $signtool sign /v /debug /as /fd SHA256 `
+              /tr "http://timestamp.acs.microsoft.com" /td SHA256 `
+              /dlib $dlibPath `
+              /dmdf "metadata.json" `
+              $file.FullName
+          }
+
+      # 5. Upload and Release the SIGNED files
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: navfit26-windows
+          name: navfit26-windows-signed
           path: |
             electron2.1/release/*.exe
             electron2.1/release/*.msi
