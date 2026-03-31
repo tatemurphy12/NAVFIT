@@ -55,13 +55,16 @@ jobs:
             package-lock.json
             frontend2.1/package-lock.json
             electron2.1/package-lock.json
-
+      - name: Debug Directory
+        run: |
+          dir
+          cd electron2.1
+          dir
       # 2. Build the app using your project's specific scripts
       - name: Install All Dependencies
         run: npm run install-all
 
       - name: Build and Package Windows Installer
-        working-directory: ./electron2.1
         run: npm run dist:win
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
