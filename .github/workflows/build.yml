@@ -64,20 +64,29 @@ jobs:
       - name: Sign Installer
         shell: pwsh
         run: |
+          # 1. Find signtool.exe
           $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Filter signtool.exe -Recurse | Where-Object { $_.FullName -match 'x64' } | Select-Object -First 1 -ExpandProperty FullName
-          $dlibPath = "signing-tools/Microsoft.ArtifactSigning.Client/runtimes/win-x64/native/Azure.CodeSigning.Dlib.dll"
           
-          # Sign both .exe and .msi if they exist
-          $filesToSign = Get-ChildItem -Path "electron2.1/release/*.exe", "electron2.1/release/*.msi"
+          # 2. Use Absolute Path for the DLL
+          $dlibPath = "$($env:GITHUB_WORKSPACE)/signing-tools/Microsoft.ArtifactSigning.Client/runtimes/win-x64/native/Azure.CodeSigning.Dlib.dll"
           
-          foreach ($file in $filesToSign) {
-            Write-Host "Signing $($file.FullName)..."
-            & $signtool sign /v /debug /as /fd SHA256 `
-              /tr "http://timestamp.acs.microsoft.com" /td SHA256 `
-              /dlib $dlibPath `
-              /dmdf "metadata.json" `
-              $file.FullName
+          # DEBUG: Verify DLL exists
+          if (Test-Path $dlibPath) { 
+              Write-Host "✅ Found Dlib at: $dlibPath" 
+          } else { 
+              Write-Error "❌ Dlib NOT found at: $dlibPath"; exit 1 
           }
+
+          # 3. Path to your installer
+          $installerPath = Get-ChildItem -Path "electron2.1/release/*.exe" | Select-Object -First 1 -ExpandProperty FullName
+
+          # 4. Sign the file
+          # Adding /debug to get more info on why it's skipping the dlib
+          & $signtool sign /v /debug /as /fd SHA256 `
+            /tr "http://timestamp.acs.microsoft.com" /td SHA256 `
+            /dlib "$dlibPath" `
+            /dmdf "metadata.json" `
+            "$installerPath"
 
       # 5. Upload and Release the SIGNED files
       - name: Upload Build Artifacts
