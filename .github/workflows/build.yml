@@ -65,7 +65,7 @@ jobs:
         working-directory: ./electron2.1
         run: |
           # Use npx to run electron-builder directly from the local node_modules
-          npx electron-builder --win
+          npx electron-builder --win --publish never
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -94,7 +94,14 @@ jobs:
           
           Write-Host "Constructing metadata for account: $account"
           $metadata | ConvertTo-Json | Out-File -FilePath metadata.json -Encoding utf8
-
+      
+      # debugging file locations
+      - name: Debug File Locations
+        shell: pwsh
+        run: |
+          Write-Host "Current Directory: $(Get-Location)"
+          Write-Host "Checking electron2.1/release folder..."
+          Get-ChildItem -Path "electron2.1/release" -Recurse | Select-Object FullName
       # 4. Sign the output files
       - name: Sign Installer
         shell: pwsh
