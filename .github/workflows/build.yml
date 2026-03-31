@@ -119,21 +119,23 @@ jobs:
             /dmdf "metadata.json" `
             "$installerPath"
 
-      # 5. Upload and Release the SIGNED files
-      - name: Upload Build Artifacts
+      # 5. Upload and Release the SIGNED .exe file ONLY
+      - name: Upload Signed Installer
         uses: actions/upload-artifact@v4
         with:
-          name: navfit26-windows-signed
-          path: |
-            electron2.1/release/*.exe
-            electron2.1/release/*.msi
+          # This name is the folder name inside the GitHub UI; 
+          # GitHub will always wrap the artifact in a zip for download here, 
+          # but once unzipped, it will contain ONLY the .exe.
+          name: NAVFIT26-Windows-Installer
+          path: electron2.1/release/*.exe
+          if-no-files-found: error
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
+        # Only runs if you pushed a tag like v1.0.0
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: |
-            electron2.1/release/*.exe
-            electron2.1/release/*.msi
+          # On the "Releases" page, this will show as a direct download link for the .exe
+          files: electron2.1/release/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
