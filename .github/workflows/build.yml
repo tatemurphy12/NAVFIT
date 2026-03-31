@@ -61,6 +61,7 @@ jobs:
         run: npm run install-all
 
       - name: Build and Package Windows Installer
+        working-directory: ./electron2.1
         run: npm run dist:win
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
