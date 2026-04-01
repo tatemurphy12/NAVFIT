@@ -64,7 +64,9 @@ jobs:
         # Move into the folder where the actual Electron code lives
         working-directory: ./electron2.1
         run: |
-          npm run dist:win
+          npm run build-ui
+          npm run build-backend
+          npm run build:win --prefix electron2.1 -- --publish never
         env:
           # This ensures electron-builder doesn't hit the 403 error
           # by passing the publish=never flag through the npm script
