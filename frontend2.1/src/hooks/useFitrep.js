@@ -104,9 +104,6 @@ export default function useFitrep(dbPath) {
         if (!dbPath) {
             return triggerNotification("Error", "No database selected! Please open a database from the home screen.", true);
         }
-        if (!formData.name || !formData.uic) {
-            return triggerNotification("Missing Info", "Name and UIC are required to save.", true);
-        }
 
         // 2. Parse the Full Name into components (e.g. "DOE, JOHN A JR")
         let lastName = "", firstName = "", mi = "", suffix = "";
@@ -135,7 +132,7 @@ export default function useFitrep(dbPath) {
             Suffix: suffix,      
             Rate: formData.grade || "",
             Desig: formData.desig || "",
-            SSN: formData.ssn ? formData.ssn.replace(/-/g, '') : "",
+            SSN: formData.ssn || "",
             UIC: formData.uic || "",
             ShipStation: formData.station || "",
             PromotionStatus: formData.promo || "",
@@ -171,7 +168,7 @@ export default function useFitrep(dbPath) {
             RSDesig: formData.reportDesig || "",
             RSTitle: formData.reportTitle || "",
             RSUIC: formData.reportUIC || "",
-            RSSSN: formData.reportSSN ? formData.reportSSN.replace(/-/g, '') : "",
+            RSSSN: formData.reportSSN ||  "",
             RSAddress: formData.seniorAddress || "",
 
             // Trait Scores (radio values are "1.0"-"5.0", "NOB", or "")
