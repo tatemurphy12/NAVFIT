@@ -1,6 +1,6 @@
 {
   "name": "navfit26",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "Modern version of NAVFIT98A",
   "homepage": "https://github.com/tatemurphy12/navfit26",
   "repository": "https://github.com/tatemurphy12/navfit26",
@@ -12,7 +12,7 @@
     "start": "electron .",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win -c.publish=never",
+    "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux"
   },
   "build": {

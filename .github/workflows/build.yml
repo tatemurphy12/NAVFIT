@@ -62,9 +62,10 @@ jobs:
 
       - name: Build and Package Windows Installer
         # Move into the folder where the actual Electron code lives
-        #working-directory: ./electron2.1
+        # working-directory: ./electron2.1
         run: |
-          npm run build:win --prefix electron2.1 -- --publish never
+          # Use npx to run electron-builder directly from the local node_modules
+          npx electron-builder --win --prefix electron2.1 --publish never
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
