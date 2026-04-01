@@ -64,10 +64,12 @@ jobs:
         # Move into the folder where the actual Electron code lives
         working-directory: ./electron2.1
         run: |
-          # Use npx to run electron-builder directly from the local node_modules
-          npx electron-builder --win --publish never
+          npm run dist:win
         env:
+          # This ensures electron-builder doesn't hit the 403 error
+          # by passing the publish=never flag through the npm script
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ELECTRON_BUILDER_ALLOW_HANDLE_NOT_RELEVANT_TAG: true
 
       # 3. Setup the Signing Tools
       - name: Download Artifact Signing Client

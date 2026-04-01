@@ -9,7 +9,7 @@
     "build-backend": "npm run build --prefix backend2.1",
     "start": "npm run build-ui && npm run build-backend && cd electron2.1 && npm start",
     "dist:linux": "npm run build-ui && npm run build-backend && npm run build:linux --prefix electron2.1",
-    "dist:win": "npm run build-ui && npm run build-backend && npm run build:win --prefix electron2.1",
+    "dist:win": "npm run build-ui && npm run build-backend && npm run build:win --prefix electron2.1 -- --publish never",
     "clean": "node -e \"const fs=require('fs'); ['frontend2.1/dist', 'electron2.1/frontend_build', 'electron2.1/backend_src', 'frontend2.1/node_modules', 'backend2.1/node_modules', 'electron2.1/node_modules'].forEach(p => { if(fs.existsSync(p)) fs.rmSync(p, {recursive:true, force:true}) })\""
   },
   "author": "Tate Murphy <jtatemurphy@gmail.com>",
