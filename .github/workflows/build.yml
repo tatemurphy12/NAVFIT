@@ -60,14 +60,6 @@ jobs:
       - name: Install All Dependencies
         run: npm run install-all
 
-      # check frontend assets
-      - name: Pre-build File Check
-        working-directory: ./electron2.1
-        run: |
-          echo "Checking for frontend assets..."
-          ls -R frontend_build | head -n 10
-        shell: bash
-
       - name: Build and Package Windows Installer
         # Move into the folder where the actual Electron code lives
         #working-directory: ./electron2.1
