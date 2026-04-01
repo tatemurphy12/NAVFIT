@@ -22,6 +22,17 @@
     <div class="download-card">
         <div class="card-header">
             <div>
+                <strong style="font-size: 1.1em;">Windows Installer</strong><br>
+                <span id="winimage-name" style="color: #57606a; font-size: 0.9em;">Loading...</span>
+            </div>
+            <span class="version-tag version-badge">...</span>
+        </div>
+        <a href="#" id="win-btn" class="btn">Download installer (.exe)</a>
+    </div>
+    
+    <div class="download-card">
+        <div class="card-header">
+            <div>
                 <strong style="font-size: 1.1em;">Linux AppImage</strong><br>
                 <span id="appimage-name" style="color: #57606a; font-size: 0.9em;">Loading...</span>
             </div>
@@ -54,12 +65,16 @@
                 const response = await fetch(`https://api.github.com/repos/${repo}/releases/latest`);
                 const data = await response.json();
                 
+                const winAsset = data.assets.find(a => a.name.toLowerCase().endsWith('.exe'));
                 const appImageAsset = data.assets.find(a => a.name.toLowerCase().endsWith('.appimage'));
                 const debAsset = data.assets.find(a => a.name.toLowerCase().endsWith('.deb'));
                 
                 // Update All Badges
                 document.querySelectorAll('.version-tag').forEach(el => el.innerText = data.tag_name);
-                
+                if (winAsset) {
+                    document.getElementById('winimage-name').innerText = winAsset.name;
+                    document.getElementById('winimage-btn').href = winAsset.browser_download_url;
+                }
                 if (appImageAsset) {
                     document.getElementById('appimage-name').innerText = appImageAsset.name;
                     document.getElementById('appimage-btn').href = appImageAsset.browser_download_url;
