@@ -70,9 +70,9 @@ jobs:
 
       - name: Build and Package Windows Installer
         # Move into the folder where the actual Electron code lives
-        working-directory: ./electron2.1
+        #working-directory: ./electron2.1
         run: |
-          npm run build:win
+          npm run build:win --prefix electron2.1 -- --publish never
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
