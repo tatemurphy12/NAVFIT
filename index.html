@@ -12,6 +12,7 @@
         .version-badge { background: #0969da; color: white; padding: 2px 8px; border-radius: 20px; font-size: 0.8em; font-weight: bold; }
         .btn { background: #2ea44f; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; text-align: center; transition: 0.2s; }
         .btn:hover { background: #2c974b; transform: translateY(-1px); }
+        .btn.disabled { background: #8c959f; pointer-events: none; }
         .checksum-box { font-size: 0.75em; color: #57606a; background: #ffffff; border: 1px solid #d0d7de; padding: 10px; border-radius: 4px; word-break: break-all; }
         code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
     </style>
@@ -23,70 +24,76 @@
         <div class="card-header">
             <div>
                 <strong style="font-size: 1.1em;">Windows Installer</strong><br>
-                <span id="winimage-name" style="color: #57606a; font-size: 0.9em;">Loading...</span>
+                <span id="winimage-name" style="color: #57606a; font-size: 0.9em;">Searching for .exe...</span>
             </div>
             <span class="version-tag version-badge">...</span>
         </div>
-        <a href="#" id="win-btn" class="btn">Download installer (.exe)</a>
+        <a href="#" id="win-btn" class="btn disabled">Download installer (.exe)</a>
     </div>
     
     <div class="download-card">
         <div class="card-header">
             <div>
                 <strong style="font-size: 1.1em;">Linux AppImage</strong><br>
-                <span id="appimage-name" style="color: #57606a; font-size: 0.9em;">Loading...</span>
+                <span id="appimage-name" style="color: #57606a; font-size: 0.9em;">Searching for .AppImage...</span>
             </div>
             <span class="version-tag version-badge">...</span>
         </div>
-        <a href="#" id="appimage-btn" class="btn">Download .AppImage</a>
+        <a href="#" id="appimage-btn" class="btn disabled">Download .AppImage</a>
     </div>
 
     <div class="download-card">
         <div class="card-header">
             <div>
                 <strong style="font-size: 1.1em;">Debian / Ubuntu (.deb)</strong><br>
-                <span id="deb-name" style="color: #57606a; font-size: 0.9em;">Loading...</span>
+                <span id="deb-name" style="color: #57606a; font-size: 0.9em;">Searching for .deb...</span>
             </div>
             <span class="version-tag version-badge">...</span>
         </div>
-        <a href="#" id="deb-btn" class="btn">Download .deb</a>
+        <a href="#" id="deb-btn" class="btn disabled">Download .deb</a>
     </div>
 
     <div class="checksum-box">
         <strong>Verification:</strong><br>
-        <code id="verif-text">Fetching latest release info...</code>
+        <code id="verif-text">Fetching latest release info from GitHub...</code>
     </div>
 
     <script>
         async function getLatestRelease() {
-            // Logic updated to new repository: tatemurphy12/NAVFIT
             const repo = "tatemurphy12/NAVFIT"; 
             try {
                 const response = await fetch(`https://api.github.com/repos/${repo}/releases/latest`);
+                if (!response.ok) throw new Error('Network response was not ok');
+                
                 const data = await response.json();
                 
-                const winAsset = data.assets.find(a => a.name.toLowerCase().endsWith('.exe'));
-                const appImageAsset = data.assets.find(a => a.name.toLowerCase().endsWith('.appimage'));
-                const debAsset = data.assets.find(a => a.name.toLowerCase().endsWith('.deb'));
-                
-                // Update All Badges
+                // Update all version badges with the tag (e.g., v1.0.2)
                 document.querySelectorAll('.version-tag').forEach(el => el.innerText = data.tag_name);
-                if (winAsset) {
-                    document.getElementById('winimage-name').innerText = winAsset.name;
-                    document.getElementById('winimage-btn').href = winAsset.browser_download_url;
-                }
-                if (appImageAsset) {
-                    document.getElementById('appimage-name').innerText = appImageAsset.name;
-                    document.getElementById('appimage-btn').href = appImageAsset.browser_download_url;
-                }
-                if (debAsset) {
-                    document.getElementById('deb-name').innerText = debAsset.name;
-                    document.getElementById('deb-btn').href = debAsset.browser_download_url;
-                }
+
+                // Helper function to map assets to UI
+                const updateLink = (idPrefix, extension) => {
+                    const asset = data.assets.find(a => a.name.toLowerCase().endsWith(extension));
+                    const nameEl = document.getElementById(`${idPrefix}-name`);
+                    const btnEl = document.getElementById(`${idPrefix}-btn`);
+
+                    if (asset) {
+                        nameEl.innerText = asset.name;
+                        btnEl.href = asset.browser_download_url;
+                        btnEl.classList.remove('disabled');
+                    } else {
+                        nameEl.innerText = `No ${extension} found in this release.`;
+                    }
+                };
+
+                // Apply updates (Note: changed 'winimage' to 'win' to match your IDs)
+                updateLink('win', '.exe');
+                updateLink('appimage', '.appimage');
+                updateLink('deb', '.deb');
 
                 document.getElementById('verif-text').innerText = `Release ${data.tag_name} assets verified on GitHub.`;
             } catch (e) {
-                document.getElementById('verif-text').innerText = "Error loading release information.";
+                console.error(e);
+                document.getElementById('verif-text').innerText = "Error loading release info. Please check the GitHub repository directly.";
             }
         }
         getLatestRelease();
