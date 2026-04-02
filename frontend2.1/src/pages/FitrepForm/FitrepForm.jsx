@@ -115,7 +115,25 @@ export default function FitrepForm() {
             }
         });
     }
-  }, [reportId, dbPath, setFormData]);
+
+    // Menu Listener Logic
+    if (window.api && window.api.onMenuNavigateHome) {
+      // We store the function so we can "turn it off" later
+      const removeListener = window.api.onMenuNavigateHome(() => {
+          navigate('/'); 
+      });
+
+      // This "return" tells React: "If this component closes or reloads, 
+      // stop listening to the menu so we don't have ghost listeners."
+      return () => {
+        if (typeof removeListener === 'function') {
+          removeListener();
+        }
+      };
+    }
+    
+  }, [reportId, dbPath, setFormData, navigate]);
+
   // Helper to convert Browser Date (YYYY-MM-DD) to Navy Format (YYMMM DD)
   const formatDateToNavy = (dateString) => {
     if (!dateString) return "";
@@ -153,7 +171,46 @@ export default function FitrepForm() {
     // Returns "2026-03-15" format required by <input type="date">
     return `${yearPart}-${String(monthIndex + 1).padStart(2, '0')}-${dayPart}`;
   };
+
+  // --- THE ACCURATE LINE COUNTER ---
+const calculateTrueLines = () => {
+  const textarea = document.querySelector('.block-41-textarea');
+  // If no textarea or no text, it's just 1 line
+  if (!textarea || !formData.comments) return 1;
+
+  const style = window.getComputedStyle(textarea);
+  const lineHeight = parseInt(style.lineHeight) || 20;
+
+  // 1. Create a hidden "Ghost" div to mimic the textarea
+  const ghost = document.createElement('div');
   
+  // 2. Copy the EXACT styles that affect text wrapping
+  ghost.style.width = style.width;
+  ghost.style.fontFamily = style.fontFamily;
+  ghost.style.fontSize = style.fontSize;
+  ghost.style.lineHeight = style.lineHeight;
+  ghost.style.padding = style.padding;
+  ghost.style.boxSizing = 'border-box';
+  ghost.style.whiteSpace = 'pre-wrap';
+  ghost.style.wordWrap = 'break-word';
+  
+  // 3. Hide it from the user
+  ghost.style.visibility = 'hidden';
+  ghost.style.position = 'absolute';
+  ghost.style.top = '-9999px';
+
+  // 4. Set the text and measure
+  ghost.textContent = formData.comments || ""; // Use the state directly
+  document.body.appendChild(ghost);
+  const textHeight = ghost.getBoundingClientRect().height;
+  document.body.removeChild(ghost);
+
+  // 5. Math: Total Height divided by height of one line
+  return Math.max(1, Math.round(textHeight / lineHeight));
+};
+
+const totalLines = calculateTrueLines();
+
   return (
     <div className="navfit-paper">
       
@@ -858,7 +915,7 @@ export default function FitrepForm() {
       
       <textarea 
         value={formData.cmdEmployAch} 
-        onChange={(e) => handleChange('cmdEmployAch', e.target.value.toUpperCase())} 
+        onChange={(e) => handleChange('cmdEmployAch', e.target.value)} 
         className="navfit-textarea" 
         style={{ 
           width: '100%', 
@@ -1194,20 +1251,55 @@ export default function FitrepForm() {
     </div>
 
       {/* BLOCK 40: MILESTONES */}
-      <div className="navfit-row" style={{ display: 'flex', borderLeft: '1px solid black', borderRight: '1px solid black'}}>
-        <div className="navfit-cell">
-          <label>40. I recommend screening this individual for next career milestone(s) as follows: (maximum of two)</label>
-          <label>Recommendations may be for competitive schools or duty assignments such as:</label>
-          <label>SCP, Dept Head, XO, OIC, CO, Major Command, War College, PG School</label>
-        </div>
-        <div className={`navfit-cell ${getError('milestoneOne').isError ? "input-error" : ""}`} style={{ flex: .5}}>
-          <input className="navfit-input" value={formData.milestoneOne} onChange={(e) => handleChange('milestoneOne', e.target.value.toUpperCase())}/>
-        </div>
-        <div className={`navfit-cell ${getError('milestoneTwo').isError ? "input-error" : ""}`} style={{ flex: 0.5, borderRight: 'none' }}>
-          <input className="navfit-input" value={formData.milestoneTwo} onChange={(e) => handleChange('milestoneTwo', e.target.value.toUpperCase())}/>
-        </div>
-      </div>
+<div className="navfit-row" style={{ 
+  display: 'flex', 
+  borderLeft: '1px solid black', 
+  borderRight: '1px solid black',
+  borderBottom: '1px solid black' /* Added bottom border to close the box */
+}}>
+  {/* LEFT: Labels */}
+  <div className="navfit-cell" style={{ flex: 3, display: 'flex', flexDirection: 'column' }}>
+    <label>40. I recommend screening this individual for next career milestone(s) as follows: (maximum of two)</label>
+    <label>Recommendations may be for competitive schools or duty assignments such as:</label>
+    <label>SCP, Dept Head, XO, OIC, CO, Major Command, War College, PG School</label>
+  </div>
 
+  {/* MIDDLE: Milestone One Box */}
+  <div 
+    className={`navfit-cell ${getError('milestoneOne').isError ? "input-error" : ""}`} 
+    style={{ 
+      flex: 0.5, 
+      borderLeft: '1px solid black', /* CRITICAL: This creates the first box in the PDF */
+      display: 'flex',
+      alignItems: 'center'
+    }}
+  >
+    <input 
+      className="navfit-input" 
+      value={formData.milestoneOne} 
+      onChange={(e) => handleChange('milestoneOne', e.target.value.toUpperCase())}
+      style={{ textAlign: 'center' }} 
+    />
+  </div>
+
+  {/* RIGHT: Milestone Two Box */}
+  <div 
+    className={`navfit-cell ${getError('milestoneTwo').isError ? "input-error" : ""}`} 
+    style={{ 
+      flex: 0.5, 
+      borderLeft: '1px solid black', /* CRITICAL: This separates the two boxes in the PDF */
+      display: 'flex',
+      alignItems: 'center'
+    }}
+  >
+    <input 
+      className="navfit-input" 
+      value={formData.milestoneTwo} 
+      onChange={(e) => handleChange('milestoneTwo', e.target.value.toUpperCase())}
+      style={{ textAlign: 'center' }}
+    />
+  </div>
+</div>
    {/* BLOCK 41: COMMENTS */}
 <div 
   className={`navfit-row ${getError('comments').isError ? "input-error" : ""}`} 
@@ -1240,18 +1332,21 @@ export default function FitrepForm() {
   </div>
 
   <textarea 
-    value={formData.comments} 
-    onChange={(e) => handleChange('comments', e.target.value.toUpperCase())} 
-    className="navfit-textarea block-41-textarea"
-      style={{ 
-      width: '100%', 
-      flex: 1, /* Allows it to fill the available space */
-      minHeight: '180px', 
-      fontSize: formData.commentFontSize || "10px", 
-      lineHeight: '1.2',
-      resize: 'none' /* Prevents user from breaking the form layout */
-    }} 
-  />
+  value={formData.comments} 
+  onChange={(e) => handleChange('comments', e.target.value)} 
+  className="navfit-textarea block-41-textarea"
+  style={{ 
+    width: '100%', 
+    flex: 1,
+    minHeight: '180px', 
+    fontSize: formData.commentFontSize || "10px", 
+    /* CHANGED: Use 'px' or 'rem' so the line counter math is exact */
+    lineHeight: '1.25rem', 
+    resize: 'none',
+    boxSizing: 'border-box', 
+    overflow: 'hidden'
+  }} 
+/>
 
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
     {/* Error Note Area */}
@@ -1261,11 +1356,11 @@ export default function FitrepForm() {
 
     {/* Metadata Stats */}
     <div style={{ textAlign: 'right', opacity: 0.7 }}>
-      <span style={{ marginRight: '10px' }}>
-        LINES: {formData.comments.split('\n').length} / 18
-      </span>
-      <span>CHARS: {formData.comments.length}</span>
-    </div>
+    <span style={{ marginRight: '10px', color: totalLines > 18 ? 'red' : 'inherit' }}>
+      LINES: {totalLines} / 18
+    </span>
+    <span>CHARS: {formData.comments.length}</span>
+  </div>
   </div>
 </div>
 
@@ -1514,6 +1609,7 @@ export default function FitrepForm() {
       <div className="navfit-actions" style={{ padding: '10px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
         <button className="save-btn" onClick={() => handleSaveFitrep(currentReportId, setCurrentReportId, dbPath)}>Save Changes</button>
         <button className="pdf-btn" onClick={handlePDFExport} disabled={!isSaved || hasUnsavedChanges}>Export PDF</button>
+        <button className="accdb-btn" onClick={handleACCDBExport} disabled={!isSaved || hasUnsavedChanges}>Export ACCDB</button>
       </div>
 
       {/* MODAL OVERLAY */}

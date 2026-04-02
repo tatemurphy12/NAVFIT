@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
@@ -602,6 +602,8 @@ function createWindow() {
         }
     });
 
+    createApplicationMenu(mainWindow);
+
     // 1. Resolve the path absolutely
     const frontendPath = path.resolve(__dirname, 'frontend_build', 'index.html');
 
@@ -614,6 +616,46 @@ function createWindow() {
     mainWindow.loadFile(frontendPath).catch(err => {
         console.error("Failed to load file:", err);
     });
+}
+function createApplicationMenu(mainWindow) {
+    const template = [
+        {
+            label: 'File',
+            submenu: [
+                {
+                    label: 'Return to Database',
+                    accelerator: 'CmdOrCtrl+D',
+                    click: () => {
+                        // This sends a signal to your React App
+                        mainWindow.webContents.send('menu-navigate-home');
+                    }
+                },
+                { type: 'separator' },
+                {
+                    label: 'Quit',
+                    accelerator: 'CmdOrCtrl+Q',
+                    click: () => { app.quit(); }
+                }
+            ]
+        },
+        {
+            label: 'Edit',
+            submenu: [
+                { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
+                { role: 'cut' }, { role: 'copy' }, { role: 'paste' }
+            ]
+        },
+        {
+            label: 'View',
+            submenu: [
+                { role: 'reload' },
+                { role: 'toggleDevTools' }
+            ]
+        }
+    ];
+
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
 }
 
 app.whenReady().then(() => {

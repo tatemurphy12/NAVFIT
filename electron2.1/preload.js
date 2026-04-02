@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('api', {
     saveFitrep: (data) => ipcRenderer.invoke('save-fitrep', data),
     exportPDF: (data) => ipcRenderer.invoke('generate-report', data),
     exportACCDB: (dbPath) => ipcRenderer.invoke('export-accdb', dbPath),
+    onMenuNavigateHome: (callback) => ipcRenderer.on('menu-navigate-home', () => callback()),
 
     // NEW: HomePage Database Management Endpoints
     getDatabases: () => ipcRenderer.invoke('getDatabases'),
@@ -14,4 +15,5 @@ contextBridge.exposeInMainWorld('api', {
     deleteFitrep: (data) => ipcRenderer.invoke('deleteFitrep', data),
     removeDatabase: (dbPath) => ipcRenderer.invoke('removeDatabase', dbPath),
     getRaterGroupSummary: (dbPath) => ipcRenderer.invoke('getRaterGroupSummary', dbPath),
+    
 });
