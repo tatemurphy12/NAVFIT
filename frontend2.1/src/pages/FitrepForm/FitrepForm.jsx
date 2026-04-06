@@ -948,82 +948,86 @@ const totalLines = calculateTrueLines();
     </div>
 
     {/* BLOCK 29: PRIMARY/COLLATERAL DUTIES */}
-    <div className={`navfit-row ${getError('primaryDuty').isError ? "input-error" : ""}`} 
-        style={{ 
-            display: 'flex', 
-            flexDirection: 'column',
-            width: '100%', 
-            borderLeft: '1px solid black',
-            borderRight: '1px solid black', 
-            padding: '5px',
-            position: 'relative',
-            minHeight: '120px' // Ensures the box doesn't collapse
-          }}>
-      <label style={{marginBottom: '5px' }}>
-        29. Primary/Collateral/Watchstanding Duties (Enter Primary Duty Abbreviation in Box)
-      </label>
-
-      {/* Mini Abbreviation Box (Stays Absolute) */}
-      <div style={{
-        position: 'absolute',
-        left: '10px',
-        top: '25px', // Adjusted slightly down from the label
-        border: `1px solid ${getError('primaryDuty').isError ? 'red' : 'black'}`,
-        width: '200px',
-        height: '25px',
-        display: 'flex',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        zIndex: 10
+<div className={`navfit-row ${getError('primaryDuty').isError ? "input-error" : ""}`} 
+    style={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        width: '100%', 
+        borderLeft: '1px solid black',
+        borderRight: '1px solid black', 
+        padding: '5px',
+        position: 'relative', // Keep this so the box can sit inside
+        minHeight: '120px'
       }}>
-        <input 
-          type="text"
-          maxLength="14"
-          value={formData.primaryDuty} 
-          onChange={(e) => handleChange('primaryDuty', e.target.value.toUpperCase())} 
-          style={{ 
-            width: '100%', 
-            border: 'none', 
-            textAlign: 'center', 
-            outline: 'none'
-          }}
-        />
-      </div>
+  <label style={{ marginBottom: '5px' }}>
+    29. Primary/Collateral/Watchstanding Duties (Enter Primary Duty Abbreviation in Box)
+  </label>
 
-      {/* TEXTAREA WRAPPER: This is the secret sauce */}
-      <div style={{ paddingTop: '35px', width: '100%' }}>
-        <textarea 
-          value={formData.duties} 
-          onChange={(e) => handleChange('duties', e.target.value)} 
-          className="navfit-textarea" 
-          style={{ 
-            width: '100%', 
-            border: 'none',
-            outline: 'none',
-            resize: 'none',
-            backgroundColor: 'transparent',
-            lineHeight: '1.2',
-            minHeight: '80px'
-          }}
-          rows="5"
-        />
-      </div>
+  {/* Mini Abbreviation Box (Stays exactly where you put it) */}
+  <div style={{
+    position: 'absolute',
+    left: '10px',
+    top: '28px', // Adjusted to align perfectly with the first line of text
+    border: `1px solid ${getError('primaryDuty').isError ? 'red' : 'black'}`,
+    width: '200px',
+    height: '22px',
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    zIndex: 10
+  }}>
+    <input 
+      type="text"
+      maxLength="14"
+      value={formData.primaryDuty} 
+      onChange={(e) => handleChange('primaryDuty', e.target.value.toUpperCase())} 
+      style={{ 
+        width: '100%', 
+        border: 'none', 
+        textAlign: 'center', 
+        outline: 'none',
+        fontSize: '11px'
+      }}
+    />
+  </div>
 
-      {/* FOOTER */}
-      <div style={{ 
-        display: 'flex',
-        justifyContent: 'space-between',
-        borderTop: '1px dashed #ccc',
-        marginTop: '5px'
-      }}>
-        <span>
-          {getError('primaryDuty').isError ? getError('primaryDuty').note : ""}
-        </span>
-        <span style={{ color: '#666' }}>
-          {formData.duties.length} / {FITREP_CONFIG.MAX_ACHIEVEMENT_LENGTH}
-        </span>
-      </div>
-    </div>
+  {/* TEXTAREA: Starts at the top, but the first line is pushed to the right */}
+  <div style={{ width: '100%' }}>
+    <textarea 
+      value={formData.duties} 
+      onChange={(e) => handleChange('duties', e.target.value)} 
+      className="navfit-textarea" 
+      style={{ 
+        width: '100%', 
+        border: 'none',
+        outline: 'none',
+        resize: 'none',
+        backgroundColor: 'transparent',
+        lineHeight: '22px', // Match this to the box height for perfect alignment
+        minHeight: '100px',
+        /* THE SECRET SAUCE: Indent the first line by the width of the box + padding */
+        textIndent: '210px', 
+        paddingTop: '2px'
+      }}
+      rows="5"
+    />
+  </div>
+
+  {/* FOOTER */}
+  <div style={{ 
+    display: 'flex',
+    justifyContent: 'space-between',
+    borderTop: '1px dashed #ccc',
+    marginTop: '5px'
+  }}>
+    <span>
+      {getError('primaryDuty').isError ? getError('primaryDuty').note : ""}
+    </span>
+    <span style={{ color: '#666' }}>
+      {(formData.duties || "").length} / {FITREP_CONFIG.MAX_ACHIEVEMENT_LENGTH}
+    </span>
+  </div>
+</div>
 
       {/* ROW: BLOCKS 30-32 (COUNSELING) */}
       <div className="navfit-row" style={{ display: 'flex', width: '100%' }}>
