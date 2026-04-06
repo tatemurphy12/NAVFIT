@@ -1,4 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+@font-face {
+  font-family: 'Orbitron';
+  src: local('Segoe UI'), local('Helvetica Neue'), local('Arial');
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: 'Orbitron';
+  src: local('Segoe UI'), local('Helvetica Neue'), local('Arial');
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: 'Orbitron';
+  src: local('Segoe UI'), local('Helvetica Neue'), local('Arial');
+  font-weight: 900;
+}
+
+@font-face {
+  font-family: 'Share Tech Mono';
+  src: local('Segoe UI'), local('Helvetica Neue'), local('Arial');
+  font-weight: 400;
+}
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -12,26 +34,12 @@
   align-items: center;
   min-height: 100vh;
   padding: 48px 32px;
-  background-color: #090d1a;
+  background-color: #f4f7fc;
   background-image:
-    radial-gradient(ellipse at 20% 10%, rgba(15, 52, 96, 0.4) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 80%, rgba(10, 30, 70, 0.3) 0%, transparent 50%),
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 40px,
-      rgba(255,255,255,0.015) 40px,
-      rgba(255,255,255,0.015) 41px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent,
-      transparent 40px,
-      rgba(255,255,255,0.015) 40px,
-      rgba(255,255,255,0.015) 41px
-    );
-  color: #e0eaff;
-  font-family: 'Share Tech Mono', monospace;
+    radial-gradient(ellipse at 20% 10%, rgba(200, 220, 255, 0.5) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(180, 210, 250, 0.3) 0%, transparent 50%);
+  color: #1a2a4a;
+  font-family: 'Share Tech Mono', 'Segoe UI', Arial, sans-serif;
 }
 
 /* Header */
@@ -42,24 +50,24 @@
 }
 
 .homepage-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 3.2rem;
-  font-weight: 900;
-  letter-spacing: 8px;
-  color: #c8dcff;
-  text-shadow: 0 0 30px rgba(100, 160, 255, 0.3);
+  font-family: 'Orbitron', 'Segoe UI', Arial, sans-serif;
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #1a3060;
+  text-shadow: none;
 }
 
 .title-accent {
-  color: #4a9eff;
-  text-shadow: 0 0 20px rgba(74, 158, 255, 0.6);
+  color: #1a6edd;
+  text-shadow: none;
 }
 
 .homepage-subtitle {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 0.72rem;
-  letter-spacing: 6px;
-  color: #4a6a9a;
+  font-family: 'Share Tech Mono', 'Segoe UI', Arial, sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 4px;
+  color: #6a8ab0;
   margin-top: 8px;
 }
 
@@ -78,9 +86,9 @@
   align-items: center;
   gap: 8px;
   padding: 11px 24px;
-  font-family: 'Share Tech Mono', monospace;
+  font-family: 'Share Tech Mono', 'Segoe UI', Arial, sans-serif;
   font-size: 13px;
-  letter-spacing: 1.5px;
+  letter-spacing: 0.5px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -98,44 +106,45 @@
 }
 
 .btn:hover::after {
-  background: rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.1);
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #0f3460, #1a4a8a);
-  color: #a0c8ff;
-  border: 1px solid #1e5aa0;
-  box-shadow: 0 0 12px rgba(30, 90, 160, 0.3);
+  background: #1a6edd;
+  color: #ffffff;
+  border: 1px solid #1558bb;
+  box-shadow: 0 2px 6px rgba(26, 110, 221, 0.25);
 }
 
 .btn-primary:hover {
-  box-shadow: 0 0 20px rgba(74, 158, 255, 0.4);
-  border-color: #4a9eff;
-  color: #c8e4ff;
+  background: #1558bb;
+  box-shadow: 0 4px 12px rgba(26, 110, 221, 0.35);
+  border-color: #1045a0;
 }
 
 .btn-secondary {
-  background: rgba(255,255,255,0.04);
-  color: #7a9acc;
-  border: 1px solid rgba(255,255,255,0.1);
+  background: #ffffff;
+  color: #1a6edd;
+  border: 1px solid #c0d4f0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
 .btn-secondary:hover {
-  background: rgba(255,255,255,0.08);
-  color: #a0bce0;
-  border-color: rgba(255,255,255,0.2);
+  background: #f0f6ff;
+  border-color: #1a6edd;
 }
 
 .btn-ghost {
   background: transparent;
-  color: #5a7aaa;
-  border: 1px solid rgba(255,255,255,0.08);
+  color: #6a8ab0;
+  border: 1px solid #c0d4f0;
   padding: 9px 18px;
 }
 
 .btn-ghost:hover {
-  color: #a0c4ff;
-  border-color: rgba(255,255,255,0.2);
+  color: #1a6edd;
+  border-color: #1a6edd;
+  background: #f0f6ff;
 }
 
 .btn-icon {
@@ -152,7 +161,7 @@
 .databases-hint {
   font-size: 11px;
   letter-spacing: 2px;
-  color: #3a5070;
+  color: #8aaad0;
   text-align: center;
   margin-bottom: 20px;
   text-transform: uppercase;
@@ -168,7 +177,7 @@
 .database-card {
   width: 128px;
   height: 128px;
-  background: rgba(15, 25, 50, 0.8);
+  background: #ffffff;
   border-radius: 10px;
   display: flex;
   flex-direction: column;
@@ -176,22 +185,23 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  border: 1px solid rgba(30, 60, 110, 0.6);
+  border: 1px solid #d0e0f4;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   position: relative;
   user-select: none;
 }
 
 .database-card:hover {
   transform: translateY(-3px);
-  border-color: rgba(74, 158, 255, 0.4);
-  background: rgba(15, 35, 70, 0.9);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 16px rgba(74, 158, 255, 0.1);
+  border-color: #1a6edd;
+  background: #f4f8ff;
+  box-shadow: 0 6px 18px rgba(26, 110, 221, 0.15);
 }
 
 .database-card.selected {
-  border-color: #4a9eff;
-  background: rgba(20, 45, 90, 0.9);
-  box-shadow: 0 0 0 1px #4a9eff, 0 0 20px rgba(74, 158, 255, 0.2);
+  border-color: #1a6edd;
+  background: #eaf2ff;
+  box-shadow: 0 0 0 2px #1a6edd, 0 4px 12px rgba(26, 110, 221, 0.15);
 }
 
 .database-icon {
@@ -206,7 +216,7 @@
 
 .database-name {
   font-size: 10px;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   text-align: center;
   word-break: break-word;
   padding: 0 10px;
@@ -215,7 +225,7 @@
 }
 
 .database-card.selected .database-name {
-  color: #a0c4ff;
+  color: #1a6edd;
 }
 
 .card-hint {
@@ -223,7 +233,7 @@
   bottom: 8px;
   font-size: 9px;
   letter-spacing: 1px;
-  color: #4a9eff;
+  color: #1a6edd;
   opacity: 0.8;
 }
 
@@ -231,13 +241,13 @@
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: #3a5070;
+  color: #8aaad0;
 }
 
 .empty-icon {
   font-size: 48px;
   margin-bottom: 16px;
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .empty-state p {
@@ -264,10 +274,10 @@
   align-items: center;
   gap: 10px;
   padding: 10px 18px;
-  background: rgba(15, 35, 70, 0.8);
-  border: 1px solid rgba(74, 158, 255, 0.3);
+  background: #ffffff;
+  border: 1px solid #c0d4f0;
   border-radius: 8px;
-  box-shadow: 0 0 12px rgba(74, 158, 255, 0.1);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
 .db-badge-icon {
@@ -275,11 +285,11 @@
 }
 
 .db-badge-name {
-  font-family: 'Orbitron', sans-serif;
+  font-family: 'Orbitron', 'Segoe UI', Arial, sans-serif;
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 2px;
-  color: #a0c4ff;
+  letter-spacing: 1px;
+  color: #1a3060;
 }
 
 .db-actions {
@@ -302,7 +312,7 @@
 .fitreps-table {
   width: 100%;
   border-collapse: collapse;
-  font-family: 'Share Tech Mono', monospace;
+  font-family: 'Share Tech Mono', 'Segoe UI', Arial, sans-serif;
   font-size: 13px;
 }
 
@@ -310,22 +320,23 @@
 .fitreps-table td {
   padding: 10px 14px;
   text-align: left;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid #e0eaf6;
 }
 
 .fitreps-table th {
-  color: #4a6a9a;
+  color: #6a8ab0;
   font-size: 11px;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
+  background: #f4f7fc;
 }
 
 .fitreps-table td {
-  color: #a0bce0;
+  color: #2a3a5a;
 }
 
 .fitreps-table tr:hover td {
-  background: rgba(255,255,255,0.03);
+  background: #f0f6ff;
 }
 
 .action-cell {
@@ -335,15 +346,28 @@
 }
 
 .btn-danger {
-  background: rgba(180, 40, 40, 0.2);
-  color: #e07070;
-  border: 1px solid rgba(180, 40, 40, 0.4);
+  background: #fff0f0;
+  color: #cc3333;
+  border: 1px solid #f0c0c0;
 }
 
 .btn-danger:hover {
-  background: rgba(180, 40, 40, 0.35);
-  color: #ff9090;
-  border-color: rgba(220, 60, 60, 0.6);
+  background: #ffe0e0;
+  color: #aa2222;
+  border-color: #e09090;
+}
+
+/* Logo */
+.logo {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+  opacity: 1;
+  z-index: 100;
 }
 
 /* Animations */

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './HomePage.css';
+import logo from './logo.png';
 
 export default function HomePage() {
   const [databases, setDatabases] = useState([]);
@@ -140,6 +141,7 @@ export default function HomePage() {
   if (openedDb) {
     return (
       <div className="homepage">
+        <img src={logo} alt="logo" className="logo" />
         <header className="homepage-header">
           <h1 className="homepage-title">NAVFIT<span className="title-accent">26</span></h1>
         </header>
@@ -210,6 +212,7 @@ export default function HomePage() {
   // ── HOME / DATABASE GRID ─────────────────────────────────────────────────
   return (
     <div className="homepage">
+      <img src={logo} alt="logo" className="logo" />
       <header className="homepage-header">
         <h1 className="homepage-title">NAVFIT<span className="title-accent">26</span></h1>
         <p className="homepage-subtitle">FITREP MANAGEMENT SYSTEM</p>
