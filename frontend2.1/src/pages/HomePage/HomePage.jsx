@@ -9,6 +9,7 @@ export default function HomePage() {
   const [fitreps, setFitreps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fitrepsLoading, setFitrepsLoading] = useState(false);
+  const [ssnState, setSsnState] = useState('decrypted');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -67,6 +68,9 @@ export default function HomePage() {
       
       setOpenedDb(db);
       setFitreps(rows || []);
+      // Load SSN encryption state for this database
+      const stateResult = await window.api.getDbSsnState(db.path);
+      setSsnState(stateResult.ssnState || 'decrypted');
     } catch (err) {
       console.error('Failed to load fitreps:', err);
       setFitreps([]);
@@ -78,6 +82,7 @@ export default function HomePage() {
   const handleBack = () => {
     setOpenedDb(null);
     setFitreps([]);
+    setSsnState('decrypted');
   };
 
   const handleRemoveDatabase = async (e, dbPath) => {
@@ -124,6 +129,42 @@ export default function HomePage() {
     }
   };
 
+  const handleToggleSSNEncryption = async () => {
+    if (ssnState === 'decrypted') {
+      // Encrypt: prompt for a new password
+      const password = window.prompt('Enter a password to encrypt SSNs.\n\nYou will need this password to decrypt them later.');
+      if (!password) return; // user cancelled
+      const confirm = window.prompt('Confirm your password:');
+      if (password !== confirm) {
+        alert('Passwords do not match.');
+        return;
+      }
+      const result = await window.api.encryptSSNs({ dbPath: openedDb.path, password });
+      if (result.success) {
+        setSsnState('encrypted');
+        alert(`SSNs encrypted successfully. ${result.recordsUpdated} report(s) updated.`);
+        // Reload fitreps to reflect encrypted SSNs in any display
+        const rows = await window.api.loadFitreps(openedDb.path);
+        if (!rows.error) setFitreps(rows || []);
+      } else {
+        alert('Encryption failed: ' + result.error);
+      }
+    } else {
+      // Decrypt: prompt for the password
+      const password = window.prompt('Enter the password to decrypt SSNs:');
+      if (!password) return; // user cancelled
+      const result = await window.api.decryptSSNs({ dbPath: openedDb.path, password });
+      if (result.success) {
+        setSsnState('decrypted');
+        alert(`SSNs decrypted successfully. ${result.recordsUpdated} report(s) updated.`);
+        const rows = await window.api.loadFitreps(openedDb.path);
+        if (!rows.error) setFitreps(rows || []);
+      } else {
+        alert('Decryption failed: ' + result.error);
+      }
+    }
+  };
+
   const handleExportACCDB = async () => {
     try {
       const result = await window.api.exportACCDB(openedDb.path);
@@ -160,6 +201,9 @@ export default function HomePage() {
             </button>
             <button className="btn btn-secondary" onClick={handleExportACCDB}>
               ↓ Export ACCDB
+            </button>
+            <button className="btn btn-secondary" onClick={handleToggleSSNEncryption}>
+              {ssnState === 'decrypted' ? '🔒 Encrypt SSNs' : '🔓 Decrypt SSNs'}
             </button>
           </div>
 

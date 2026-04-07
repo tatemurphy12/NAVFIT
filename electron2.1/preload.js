@@ -15,5 +15,8 @@ contextBridge.exposeInMainWorld('api', {
     deleteFitrep: (data) => ipcRenderer.invoke('deleteFitrep', data),
     removeDatabase: (dbPath) => ipcRenderer.invoke('removeDatabase', dbPath),
     getRaterGroupSummary: (dbPath) => ipcRenderer.invoke('getRaterGroupSummary', dbPath),
+    getDbSsnState: (dbPath) => ipcRenderer.invoke('getDbSsnState', dbPath),
+    encryptSSNs: (data) => ipcRenderer.invoke('encryptSSNs', data),
+    decryptSSNs: (data) => ipcRenderer.invoke('decryptSSNs', data),
     
 });

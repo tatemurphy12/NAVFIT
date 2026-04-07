@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { execFile } = require('child_process');
 const Database = require('better-sqlite3');
 
@@ -68,7 +69,20 @@ function getDatabasesList() {
         return [];
     }
     try {
-        return JSON.parse(fs.readFileSync(DATABASES_LIST_PATH, 'utf-8'));
+        const list = JSON.parse(fs.readFileSync(DATABASES_LIST_PATH, 'utf-8'));
+        // Migrate existing entries to include ssnState and ssnPassword
+        let needsSave = false;
+        for (const db of list) {
+            if (db.ssnState === undefined) {
+                db.ssnState = 'decrypted';
+                db.ssnPassword = null;
+                needsSave = true;
+            }
+        }
+        if (needsSave) {
+            fs.writeFileSync(DATABASES_LIST_PATH, JSON.stringify(list));
+        }
+        return list;
     } catch (err) {
         return [];
     }
@@ -335,6 +349,11 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
             throw new Error("No database found. Please open or create a database first.");
         }
 
+        // Block export if SSNs are encrypted
+        if (isDbEncrypted(dbPath)) {
+            return { success: false, error: 'SSNs are currently encrypted. Please decrypt SSNs before exporting to ACCDB.' };
+        }
+
         const defaultFileName = generateDynamicName(dbPath, 'accdb');
 
         const { canceled, filePath } = await dialog.showSaveDialog({
@@ -469,9 +488,21 @@ function generateDynamicName(dbPath, extension) {
     }
 }
 
+// Helper: check if a database has encrypted SSNs
+function isDbEncrypted(dbPath) {
+    const list = getDatabasesList();
+    const entry = list.find(d => d.path === dbPath);
+    return entry && entry.ssnState === 'encrypted';
+}
+
 // 3. Generate PDF
 ipcMain.handle('generate-report', async (e, reportData) => {
     try {
+        // Block export if SSNs are encrypted
+        if (reportData && reportData.dbPath && isDbEncrypted(reportData.dbPath)) {
+            return { success: false, error: 'SSNs are currently encrypted. Please decrypt SSNs before exporting to PDF.' };
+        }
+
         // Pre-calculate the default name to show in the prompt
         let dataModel = reportData ? new FitRepData(reportData) : FitRepData.mock();
         const safeName = (dataModel.FullName || "Draft_Report").replace(/[^a-z0-9]/gi, '_').toLowerCase();
@@ -501,6 +532,130 @@ ipcMain.handle('generate-report', async (e, reportData) => {
 
 ipcMain.handle('getDatabases', async () => {
     return getDatabasesList();
+});
+
+ipcMain.handle('getDbSsnState', async (event, dbPath) => {
+    const list = getDatabasesList();
+    const entry = list.find(d => d.path === dbPath);
+    if (!entry) return { ssnState: 'decrypted' };
+    return { ssnState: entry.ssnState || 'decrypted' };
+});
+
+// --- SSN ENCRYPTION HELPERS ---
+const SSN_SALT_LENGTH = 16;
+const SSN_IV_LENGTH = 12;
+const SSN_KEY_LENGTH = 32;
+const SSN_PBKDF2_ITERATIONS = 100000;
+
+function deriveKey(password, salt) {
+    return crypto.pbkdf2Sync(password, salt, SSN_PBKDF2_ITERATIONS, SSN_KEY_LENGTH, 'sha256');
+}
+
+function encryptSSN(plaintext, key) {
+    if (!plaintext || plaintext.trim() === '') return plaintext;
+    const iv = crypto.randomBytes(SSN_IV_LENGTH);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    let encrypted = cipher.update(plaintext, 'utf8', 'base64');
+    encrypted += cipher.final('base64');
+    const authTag = cipher.getAuthTag();
+    // Format: ENC:<iv>:<authTag>:<ciphertext>
+    return `ENC:${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`;
+}
+
+function decryptSSN(encryptedText, key) {
+    if (!encryptedText || !encryptedText.startsWith('ENC:')) return encryptedText;
+    const parts = encryptedText.split(':');
+    if (parts.length !== 4) return encryptedText;
+    const iv = Buffer.from(parts[1], 'base64');
+    const authTag = Buffer.from(parts[2], 'base64');
+    const ciphertext = parts[3];
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(authTag);
+    let decrypted = decipher.update(ciphertext, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+}
+
+ipcMain.handle('encryptSSNs', async (event, { dbPath, password }) => {
+    try {
+        const list = getDatabasesList();
+        const entry = list.find(d => d.path === dbPath);
+        if (!entry) return { success: false, error: 'Database not found in list' };
+        if (entry.ssnState === 'encrypted') return { success: false, error: 'SSNs are already encrypted' };
+
+        // Generate a salt and derive the key
+        const salt = crypto.randomBytes(SSN_SALT_LENGTH);
+        const key = deriveKey(password, salt);
+
+        // Open the database and encrypt all SSN and RSSSN values
+        const db = new Database(dbPath);
+        const rows = db.prepare('SELECT rowid, SSN, RSSSN FROM [Reports]').all();
+        const updateStmt = db.prepare('UPDATE [Reports] SET SSN = ?, RSSSN = ? WHERE rowid = ?');
+
+        const txn = db.transaction(() => {
+            for (const row of rows) {
+                const encSSN = encryptSSN(row.SSN, key);
+                const encRSSSN = encryptSSN(row.RSSSN, key);
+                updateStmt.run(encSSN, encRSSSN, row.rowid);
+            }
+        });
+        txn();
+        db.close();
+
+        // Store salt and state (NOT the password or key)
+        entry.ssnState = 'encrypted';
+        entry.ssnSalt = salt.toString('base64');
+        entry.ssnPassword = null; // Never store the password
+        saveDatabasesList(list);
+
+        return { success: true, recordsUpdated: rows.length };
+    } catch (err) {
+        console.error('Encrypt SSNs Error:', err);
+        return { success: false, error: err.message };
+    }
+});
+
+ipcMain.handle('decryptSSNs', async (event, { dbPath, password }) => {
+    try {
+        const list = getDatabasesList();
+        const entry = list.find(d => d.path === dbPath);
+        if (!entry) return { success: false, error: 'Database not found in list' };
+        if (entry.ssnState !== 'encrypted') return { success: false, error: 'SSNs are not encrypted' };
+        if (!entry.ssnSalt) return { success: false, error: 'No encryption salt found — cannot decrypt' };
+
+        // Re-derive the key from the password and stored salt
+        const salt = Buffer.from(entry.ssnSalt, 'base64');
+        const key = deriveKey(password, salt);
+
+        // Open the database and decrypt all SSN and RSSSN values
+        const db = new Database(dbPath);
+        const rows = db.prepare('SELECT rowid, SSN, RSSSN FROM [Reports]').all();
+        const updateStmt = db.prepare('UPDATE [Reports] SET SSN = ?, RSSSN = ? WHERE rowid = ?');
+
+        const txn = db.transaction(() => {
+            for (const row of rows) {
+                const decSSN = decryptSSN(row.SSN, key);
+                const decRSSSN = decryptSSN(row.RSSSN, key);
+                updateStmt.run(decSSN, decRSSSN, row.rowid);
+            }
+        });
+        txn();
+        db.close();
+
+        // Update state, clear salt
+        entry.ssnState = 'decrypted';
+        entry.ssnSalt = null;
+        saveDatabasesList(list);
+
+        return { success: true, recordsUpdated: rows.length };
+    } catch (err) {
+        // If decryption fails (wrong password), the authTag check will throw
+        if (err.message.includes('Unsupported state') || err.message.includes('unable to authenticate')) {
+            return { success: false, error: 'Incorrect password' };
+        }
+        console.error('Decrypt SSNs Error:', err);
+        return { success: false, error: err.message };
+    }
 });
 
 
@@ -537,7 +692,7 @@ ipcMain.handle('uploadDatabase', async () => {
 
         // Prevent duplicate entries in the tracking list
         if (!list.find(d => d.path === dbPath)) {
-            list.push({ name, path: dbPath });
+            list.push({ name, path: dbPath, ssnState: 'decrypted', ssnPassword: null });
             saveDatabasesList(list);
         }
 
@@ -579,7 +734,7 @@ ipcMain.handle('createDatabase', async () => {
         // 3. Save to tracked list
         const name = path.basename(filePath);
         const list = getDatabasesList();
-        list.push({ name, path: filePath });
+        list.push({ name, path: filePath, ssnState: 'decrypted', ssnPassword: null });
         saveDatabasesList(list);
         
         return { success: true, name, path: filePath };

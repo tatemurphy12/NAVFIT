@@ -239,6 +239,7 @@ export default function useFitrep(dbPath) {
         // Build export data directly from current form state so the PDF
         // always reflects what is on screen (not a stale selectedReport).
         const exportData = {
+            dbPath: dbPath || "",
             FullName: formData.name || "",
             Rate: formData.grade || "",
             Desig: formData.desig || "",
