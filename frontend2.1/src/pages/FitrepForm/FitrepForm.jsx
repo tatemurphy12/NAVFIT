@@ -227,8 +227,9 @@ const calculateTrueLines = () => {
 const totalLines = calculateTrueLines();
 
   return (
+    <>
     <div className="navfit-paper">
-      
+
       {/* ADDED: Back to Database Button */}
       <div style={{ padding: '10px 0', display: 'flex', justifyContent: 'flex-start' }}>
         <button 
@@ -1637,80 +1638,79 @@ const totalLines = calculateTrueLines();
         <button className="accdb-btn" onClick={handleACCDBExport} disabled={!isSaved || hasUnsavedChanges}>Export ACCDB</button>
       </div>
 
-      {/* MODAL OVERLAY */}
-      {showModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: 'white', padding: '20px', borderRadius: '8px' }}>
-            <h3 style={{ color: modalContent.isError ? 'red' : 'green' }}>{modalContent.title}</h3>
-            <p>{modalContent.text}</p>
-            <button onClick={() => setShowModal(false)}>Close</button>
-          </div>
-        </div>
-      )}
+    </div>{/* This closes navfit-paper */}
 
-      {/* DECRYPT FOR EXPORT MODAL */}
-      {showDecryptModal && (
+    {/* MODAL OVERLAY - rendered outside navfit-paper to avoid CSS conflicts */}
+    {showModal && (
+      <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+        <div className="modal-content" style={{ background: 'white', padding: '20px', borderRadius: '8px' }}>
+          <h3 style={{ color: modalContent.isError ? 'red' : 'green' }}>{modalContent.title}</h3>
+          <p>{modalContent.text}</p>
+          <button onClick={() => setShowModal(false)}>Close</button>
+        </div>
+      </div>
+    )}
+
+    {/* DECRYPT FOR EXPORT MODAL - rendered outside navfit-paper to avoid CSS conflicts */}
+    {showDecryptModal && (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.5)', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', zIndex: 1001
+      }}>
         <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.5)', display: 'flex',
-          alignItems: 'center', justifyContent: 'center', zIndex: 1001
+          background: '#1e1e2e', borderRadius: '12px', padding: '30px',
+          minWidth: '360px', maxWidth: '420px', color: '#fff',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
         }}>
-          <div style={{
-            background: '#1e1e2e', borderRadius: '12px', padding: '30px',
-            minWidth: '360px', maxWidth: '420px', color: '#fff',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
-          }}>
-            <h3 style={{ margin: '0 0 8px 0' }}>SSNs Are Encrypted</h3>
-            <p style={{ color: '#aaa', fontSize: '14px', margin: '0 0 20px 0' }}>
-              SSNs must be decrypted before exporting. Enter your password to decrypt and continue.
-            </p>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Password</label>
-            <input
-              ref={decryptPasswordRef}
-              type="password"
-              value={decryptPassword}
-              onChange={(e) => setDecryptPassword(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleDecryptForExport(decryptPassword, currentReportId).then(r => {
-                    if (!r.success) setDecryptError(r.error);
-                    else { setDecryptPassword(''); setDecryptError(''); }
-                  });
-                }
-              }}
-              style={{
-                width: '100%', padding: '10px', borderRadius: '6px',
-                border: '1px solid #444', background: '#2a2a3e', color: '#fff',
-                fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box'
-              }}
-            />
-            {decryptError && (
-              <p style={{ color: '#ff6b6b', fontSize: '13px', margin: '0 0 12px 0' }}>{decryptError}</p>
-            )}
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button
-                className="save-btn"
-                style={{ background: '#555', border: 'none', padding: '8px 16px', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
-                onClick={() => { setShowDecryptModal(false); setDecryptPassword(''); setDecryptError(''); }}
-              >
-                Cancel
-              </button>
-              <button
-                className="save-btn"
-                style={{ padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}
-                onClick={async () => {
-                  const r = await handleDecryptForExport(decryptPassword, currentReportId);
+          <h3 style={{ margin: '0 0 8px 0' }}>SSNs Are Encrypted</h3>
+          <p style={{ color: '#aaa', fontSize: '14px', margin: '0 0 20px 0' }}>
+            SSNs must be decrypted before exporting. Enter your password to decrypt and continue.
+          </p>
+          <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Password</label>
+          <input
+            ref={decryptPasswordRef}
+            type="password"
+            value={decryptPassword}
+            onChange={(e) => setDecryptPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleDecryptForExport(decryptPassword, currentReportId).then(r => {
                   if (!r.success) setDecryptError(r.error);
                   else { setDecryptPassword(''); setDecryptError(''); }
-                }}
-              >
-                Decrypt & Export
-              </button>
-            </div>
+                });
+              }
+            }}
+            style={{
+              width: '100%', padding: '10px', borderRadius: '6px',
+              border: '1px solid #444', background: '#2a2a3e', color: '#fff',
+              fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box'
+            }}
+          />
+          {decryptError && (
+            <p style={{ color: '#ff6b6b', fontSize: '13px', margin: '0 0 12px 0' }}>{decryptError}</p>
+          )}
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button
+              style={{ background: '#555', border: 'none', padding: '8px 16px', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
+              onClick={() => { setShowDecryptModal(false); setDecryptPassword(''); setDecryptError(''); }}
+            >
+              Cancel
+            </button>
+            <button
+              style={{ background: '#4a90d9', border: 'none', padding: '8px 16px', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
+              onClick={async () => {
+                const r = await handleDecryptForExport(decryptPassword, currentReportId);
+                if (!r.success) setDecryptError(r.error);
+                else { setDecryptPassword(''); setDecryptError(''); }
+              }}
+            >
+              Decrypt & Export
+            </button>
           </div>
         </div>
-      )}
-
-    </div> // This closes navfit-paper
+      </div>
+    )}
+    </>
   );
 }
