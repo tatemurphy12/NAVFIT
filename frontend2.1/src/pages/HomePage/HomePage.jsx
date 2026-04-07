@@ -10,6 +10,10 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [fitrepsLoading, setFitrepsLoading] = useState(false);
   const [ssnState, setSsnState] = useState('decrypted');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -129,38 +133,45 @@ export default function HomePage() {
     }
   };
 
-  const handleToggleSSNEncryption = async () => {
+  const handleToggleSSNEncryption = () => {
+    setPasswordInput('');
+    setConfirmPasswordInput('');
+    setPasswordError('');
+    setShowPasswordModal(true);
+  };
+
+  const handlePasswordSubmit = async () => {
+    if (!passwordInput) {
+      setPasswordError('Password is required.');
+      return;
+    }
     if (ssnState === 'decrypted') {
-      // Encrypt: prompt for a new password
-      const password = window.prompt('Enter a password to encrypt SSNs.\n\nYou will need this password to decrypt them later.');
-      if (!password) return; // user cancelled
-      const confirm = window.prompt('Confirm your password:');
-      if (password !== confirm) {
-        alert('Passwords do not match.');
+      // Encrypting: require confirmation
+      if (passwordInput !== confirmPasswordInput) {
+        setPasswordError('Passwords do not match.');
         return;
       }
-      const result = await window.api.encryptSSNs({ dbPath: openedDb.path, password });
+      const result = await window.api.encryptSSNs({ dbPath: openedDb.path, password: passwordInput });
       if (result.success) {
         setSsnState('encrypted');
+        setShowPasswordModal(false);
         alert(`SSNs encrypted successfully. ${result.recordsUpdated} report(s) updated.`);
-        // Reload fitreps to reflect encrypted SSNs in any display
         const rows = await window.api.loadFitreps(openedDb.path);
         if (!rows.error) setFitreps(rows || []);
       } else {
-        alert('Encryption failed: ' + result.error);
+        setPasswordError('Encryption failed: ' + result.error);
       }
     } else {
-      // Decrypt: prompt for the password
-      const password = window.prompt('Enter the password to decrypt SSNs:');
-      if (!password) return; // user cancelled
-      const result = await window.api.decryptSSNs({ dbPath: openedDb.path, password });
+      // Decrypting
+      const result = await window.api.decryptSSNs({ dbPath: openedDb.path, password: passwordInput });
       if (result.success) {
         setSsnState('decrypted');
+        setShowPasswordModal(false);
         alert(`SSNs decrypted successfully. ${result.recordsUpdated} report(s) updated.`);
         const rows = await window.api.loadFitreps(openedDb.path);
         if (!rows.error) setFitreps(rows || []);
       } else {
-        alert('Decryption failed: ' + result.error);
+        setPasswordError(result.error || 'Decryption failed.');
       }
     }
   };
@@ -203,7 +214,7 @@ export default function HomePage() {
               ↓ Export ACCDB
             </button>
             <button className="btn btn-secondary" onClick={handleToggleSSNEncryption}>
-              {ssnState === 'decrypted' ? '🔒 Encrypt SSNs' : '🔓 Decrypt SSNs'}
+              {ssnState === 'decrypted' ? 'Encrypt SSNs' : 'Decrypt SSNs'}
             </button>
           </div>
 
@@ -249,6 +260,79 @@ export default function HomePage() {
             )}
           </div>
         </div>
+
+        {showPasswordModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', zIndex: 1000
+          }}>
+            <div style={{
+              background: '#1e1e2e', borderRadius: '12px', padding: '30px',
+              minWidth: '360px', maxWidth: '420px', color: '#fff',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+            }}>
+              <h3 style={{ margin: '0 0 8px 0' }}>
+                {ssnState === 'decrypted' ? 'Encrypt SSNs' : 'Decrypt SSNs'}
+              </h3>
+              <p style={{ color: '#aaa', fontSize: '14px', margin: '0 0 20px 0' }}>
+                {ssnState === 'decrypted'
+                  ? 'Enter a password to encrypt all SSNs. You will need this password to decrypt them later.'
+                  : 'Enter the password to decrypt SSNs.'}
+              </p>
+
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Password</label>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handlePasswordSubmit(); }}
+                style={{
+                  width: '100%', padding: '10px', borderRadius: '6px',
+                  border: '1px solid #444', background: '#2a2a3e', color: '#fff',
+                  fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box'
+                }}
+                autoFocus
+              />
+
+              {ssnState === 'decrypted' && (
+                <>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Confirm Password</label>
+                  <input
+                    type="password"
+                    value={confirmPasswordInput}
+                    onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handlePasswordSubmit(); }}
+                    style={{
+                      width: '100%', padding: '10px', borderRadius: '6px',
+                      border: '1px solid #444', background: '#2a2a3e', color: '#fff',
+                      fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box'
+                    }}
+                  />
+                </>
+              )}
+
+              {passwordError && (
+                <p style={{ color: '#ff6b6b', fontSize: '13px', margin: '0 0 12px 0' }}>{passwordError}</p>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setShowPasswordModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handlePasswordSubmit}
+                >
+                  {ssnState === 'decrypted' ? 'Encrypt' : 'Decrypt'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
