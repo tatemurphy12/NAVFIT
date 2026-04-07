@@ -42,8 +42,15 @@ export default function FitrepForm() {
     hasUnsavedChanges, 
     handleACCDBExport,
     getError,
-    raterGroupSummary
+    raterGroupSummary,
+    ssnEncrypted,
+    showDecryptModal,
+    setShowDecryptModal,
+    handleDecryptForExport
   } = useFitrep(dbPath);
+
+  const [decryptPassword, setDecryptPassword] = useState('');
+  const [decryptError, setDecryptError] = useState('');
 
   // Pre-fill data if editing an existing report
   useEffect(() => {
@@ -319,9 +326,10 @@ const totalLines = calculateTrueLines();
         style={{ flex: 1.5 }}
       >
         <label>4. SSN</label>
-        <input 
+        <input
           className="navfit-input"
-          value={formData.ssn} 
+          value={ssnEncrypted ? '\u2022\u2022\u2022-\u2022\u2022-\u2022\u2022\u2022\u2022' : formData.ssn}
+          readOnly={ssnEncrypted}
           onChange={(e) => {
             // Allow only digits and hyphens
             let val = e.target.value.replace(/[^0-9-]/g, '');
@@ -875,16 +883,17 @@ const totalLines = calculateTrueLines();
         style={{ flex: 1, borderRight: '1px solid black', minWidth: 0 }}
       >
         <label>27. SSN</label>
-        <input 
+        <input
           className="navfit-input"
-          value={formData.reportSSN || ""} /* Added || "" to prevent controlled/uncontrolled warnings */
+          value={ssnEncrypted ? '\u2022\u2022\u2022-\u2022\u2022-\u2022\u2022\u2022\u2022' : (formData.reportSSN || "")}
+          readOnly={ssnEncrypted}
           onChange={(e) => {
             // 1. Filter the input
             let val = e.target.value.replace(/[^0-9-]/g, '');
-            
+
             // 2. Cap the length
             if (val.length > 11) val = val.slice(0, 11);
-            
+
             // 3. FIX: Use 'val', not 'masked'
             handleChange('reportSSN', val);
           }}
@@ -1623,6 +1632,69 @@ const totalLines = calculateTrueLines();
             <h3 style={{ color: modalContent.isError ? 'red' : 'green' }}>{modalContent.title}</h3>
             <p>{modalContent.text}</p>
             <button onClick={() => setShowModal(false)}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* DECRYPT FOR EXPORT MODAL */}
+      {showDecryptModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1001
+        }}>
+          <div style={{
+            background: '#1e1e2e', borderRadius: '12px', padding: '30px',
+            minWidth: '360px', maxWidth: '420px', color: '#fff',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+          }}>
+            <h3 style={{ margin: '0 0 8px 0' }}>SSNs Are Encrypted</h3>
+            <p style={{ color: '#aaa', fontSize: '14px', margin: '0 0 20px 0' }}>
+              SSNs must be decrypted before exporting. Enter your password to decrypt and continue.
+            </p>
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Password</label>
+            <input
+              type="password"
+              value={decryptPassword}
+              onChange={(e) => setDecryptPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleDecryptForExport(decryptPassword, currentReportId).then(r => {
+                    if (!r.success) setDecryptError(r.error);
+                    else { setDecryptPassword(''); setDecryptError(''); }
+                  });
+                }
+              }}
+              style={{
+                width: '100%', padding: '10px', borderRadius: '6px',
+                border: '1px solid #444', background: '#2a2a3e', color: '#fff',
+                fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box'
+              }}
+              autoFocus
+            />
+            {decryptError && (
+              <p style={{ color: '#ff6b6b', fontSize: '13px', margin: '0 0 12px 0' }}>{decryptError}</p>
+            )}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                className="save-btn"
+                style={{ background: '#555', border: 'none', padding: '8px 16px', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
+                onClick={() => { setShowDecryptModal(false); setDecryptPassword(''); setDecryptError(''); }}
+              >
+                Cancel
+              </button>
+              <button
+                className="save-btn"
+                style={{ padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}
+                onClick={async () => {
+                  const r = await handleDecryptForExport(decryptPassword, currentReportId);
+                  if (!r.success) setDecryptError(r.error);
+                  else { setDecryptPassword(''); setDecryptError(''); }
+                }}
+              >
+                Decrypt & Export
+              </button>
+            </div>
           </div>
         </div>
       )}

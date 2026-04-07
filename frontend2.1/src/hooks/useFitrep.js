@@ -25,6 +25,20 @@ export default function useFitrep(dbPath) {
     const [isSaved, setIsSaved] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+    // SSN ENCRYPTION STATE
+    const [ssnEncrypted, setSsnEncrypted] = useState(false);
+    // When an export is blocked by encryption, store which export to resume after decrypt
+    const [pendingExport, setPendingExport] = useState(null); // 'pdf' | 'accdb' | null
+    const [showDecryptModal, setShowDecryptModal] = useState(false);
+
+    // Fetch SSN encryption state on mount
+    useEffect(() => {
+        if (!dbPath) return;
+        window.api.getDbSsnState(dbPath).then(result => {
+            setSsnEncrypted(result.ssnState === 'encrypted');
+        });
+    }, [dbPath]);
+
     // RATER GROUP SUMMARY (computed from all reports in the database)
     const [raterGroupSummary, setRaterGroupSummary] = useState({
         summaryGroupAverage: 'NAN',
@@ -236,6 +250,13 @@ export default function useFitrep(dbPath) {
     };
 
     const handlePDFExport = async () => {
+        // Block if SSNs are encrypted — prompt user to decrypt first
+        if (ssnEncrypted) {
+            setPendingExport('pdf');
+            setShowDecryptModal(true);
+            return;
+        }
+
         // Build export data directly from current form state so the PDF
         // always reflects what is on screen (not a stale selectedReport).
         const exportData = {
@@ -315,6 +336,13 @@ export default function useFitrep(dbPath) {
     if (!dbPath) {
         return triggerNotification("Error", "No database selected.", true);
     }
+
+    // Block if SSNs are encrypted — prompt user to decrypt first
+    if (ssnEncrypted) {
+        setPendingExport('accdb');
+        setShowDecryptModal(true);
+        return;
+    }
     
     // Optional: Auto-save before exporting to ensure the ACCDB has the latest data
     if (hasUnsavedChanges) {
@@ -353,6 +381,33 @@ export default function useFitrep(dbPath) {
     }
   };
 
+    // Called from FitrepForm when user enters password in the decrypt modal
+    const handleDecryptForExport = async (password, reportId) => {
+        const result = await window.api.decryptSSNs({ dbPath, password });
+        if (result.success) {
+            setSsnEncrypted(false);
+            setShowDecryptModal(false);
+            // Re-load the current report to get decrypted SSN values
+            if (dbPath && reportId) {
+                const reportData = await window.api.loadFitrep({ dbPath, reportId });
+                if (reportData && !reportData.error) {
+                    setFormData(prev => ({
+                        ...prev,
+                        ssn: reportData.SSN || '',
+                        reportSSN: reportData.RSSSN || '',
+                    }));
+                }
+            }
+            // Resume the pending export
+            const exportType = pendingExport;
+            setPendingExport(null);
+            if (exportType === 'pdf') handlePDFExport();
+            else if (exportType === 'accdb') handleACCDBExport();
+            return { success: true };
+        }
+        return { success: false, error: result.error || 'Decryption failed.' };
+    };
+
     const getError = (field) => {
         if (validators[field]) {
           const result = validators[field](formData[field], formData);
@@ -365,6 +420,7 @@ export default function useFitrep(dbPath) {
         formData, setFormData, message, setMessage, showModal, setShowModal, modalContent,
         handleChange, handlePDFExport, calculateTraitAverage, handleSaveFitrep,
         handleACCDBExport, handleSQLiteExport, isSaved, hasUnsavedChanges, getError,
-        raterGroupSummary
+        raterGroupSummary, ssnEncrypted, showDecryptModal, setShowDecryptModal,
+        handleDecryptForExport
     };
 }
