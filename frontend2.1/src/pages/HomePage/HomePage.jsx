@@ -138,6 +138,13 @@ export default function HomePage() {
     }
   };
 
+  // Auto-dismiss SSN message after 3 seconds
+  useEffect(() => {
+    if (!ssnMessage) return;
+    const timer = setTimeout(() => setSsnMessage(null), 3000);
+    return () => clearTimeout(timer);
+  }, [ssnMessage]);
+
   const handleToggleSSNEncryption = () => {
     setPasswordInput('');
     setConfirmPasswordInput('');
