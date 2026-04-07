@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './HomePage.css';
 import logo from './logo.png';
@@ -15,7 +15,7 @@ export default function HomePage() {
   const [passwordInput, setPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const passwordRef = React.useRef(null);
+  const passwordRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
