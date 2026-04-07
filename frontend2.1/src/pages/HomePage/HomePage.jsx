@@ -10,10 +10,12 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [fitrepsLoading, setFitrepsLoading] = useState(false);
   const [ssnState, setSsnState] = useState('decrypted');
+  const [hasPassword, setHasPassword] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const passwordRef = React.useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -75,6 +77,7 @@ export default function HomePage() {
       // Load SSN encryption state for this database
       const stateResult = await window.api.getDbSsnState(db.path);
       setSsnState(stateResult.ssnState || 'decrypted');
+      setHasPassword(!!stateResult.hasPassword);
     } catch (err) {
       console.error('Failed to load fitreps:', err);
       setFitreps([]);
@@ -87,6 +90,7 @@ export default function HomePage() {
     setOpenedDb(null);
     setFitreps([]);
     setSsnState('decrypted');
+    setHasPassword(false);
   };
 
   const handleRemoveDatabase = async (e, dbPath) => {
@@ -133,6 +137,13 @@ export default function HomePage() {
     }
   };
 
+  // Force focus on password input when modal opens (autoFocus doesn't work in Electron)
+  useEffect(() => {
+    if (showPasswordModal && passwordRef.current) {
+      setTimeout(() => passwordRef.current.focus(), 50);
+    }
+  }, [showPasswordModal]);
+
   const handleToggleSSNEncryption = () => {
     setPasswordInput('');
     setConfirmPasswordInput('');
@@ -140,20 +151,26 @@ export default function HomePage() {
     setShowPasswordModal(true);
   };
 
+  const needsConfirm = ssnState === 'decrypted' && !hasPassword;
+
   const handlePasswordSubmit = async () => {
     if (!passwordInput) {
       setPasswordError('Password is required.');
       return;
     }
-    if (ssnState === 'decrypted') {
-      // Encrypting: require confirmation
+    if (needsConfirm) {
+      // First time: require confirmation
       if (passwordInput !== confirmPasswordInput) {
         setPasswordError('Passwords do not match.');
         return;
       }
+    }
+    if (ssnState === 'decrypted') {
+      // Encrypting
       const result = await window.api.encryptSSNs({ dbPath: openedDb.path, password: passwordInput });
       if (result.success) {
         setSsnState('encrypted');
+        setHasPassword(true);
         setShowPasswordModal(false);
         alert(`SSNs encrypted successfully. ${result.recordsUpdated} report(s) updated.`);
         const rows = await window.api.loadFitreps(openedDb.path);
@@ -276,13 +293,14 @@ export default function HomePage() {
                 {ssnState === 'decrypted' ? 'Encrypt SSNs' : 'Decrypt SSNs'}
               </h3>
               <p style={{ color: '#aaa', fontSize: '14px', margin: '0 0 20px 0' }}>
-                {ssnState === 'decrypted'
-                  ? 'Enter a password to encrypt all SSNs. You will need this password to decrypt them later.'
-                  : 'Enter the password to decrypt SSNs.'}
+                {needsConfirm
+                  ? 'Create a password to encrypt SSNs. You will need this password to decrypt them later.'
+                  : 'Enter your password.'}
               </p>
 
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Password</label>
               <input
+                ref={passwordRef}
                 type="password"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
@@ -292,10 +310,9 @@ export default function HomePage() {
                   border: '1px solid #444', background: '#2a2a3e', color: '#fff',
                   fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box'
                 }}
-                autoFocus
               />
 
-              {ssnState === 'decrypted' && (
+              {needsConfirm && (
                 <>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Confirm Password</label>
                   <input

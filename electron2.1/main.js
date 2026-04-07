@@ -537,8 +537,11 @@ ipcMain.handle('getDatabases', async () => {
 ipcMain.handle('getDbSsnState', async (event, dbPath) => {
     const list = getDatabasesList();
     const entry = list.find(d => d.path === dbPath);
-    if (!entry) return { ssnState: 'decrypted' };
-    return { ssnState: entry.ssnState || 'decrypted' };
+    if (!entry) return { ssnState: 'decrypted', hasPassword: false };
+    return {
+        ssnState: entry.ssnState || 'decrypted',
+        hasPassword: !!entry.ssnSalt
+    };
 });
 
 // --- SSN ENCRYPTION HELPERS ---
@@ -583,8 +586,10 @@ ipcMain.handle('encryptSSNs', async (event, { dbPath, password }) => {
         if (!entry) return { success: false, error: 'Database not found in list' };
         if (entry.ssnState === 'encrypted') return { success: false, error: 'SSNs are already encrypted' };
 
-        // Generate a salt and derive the key
-        const salt = crypto.randomBytes(SSN_SALT_LENGTH);
+        // Reuse existing salt if password was set before, otherwise generate new
+        const salt = entry.ssnSalt
+            ? Buffer.from(entry.ssnSalt, 'base64')
+            : crypto.randomBytes(SSN_SALT_LENGTH);
         const key = deriveKey(password, salt);
 
         // Open the database and encrypt all SSN and RSSSN values
@@ -642,9 +647,8 @@ ipcMain.handle('decryptSSNs', async (event, { dbPath, password }) => {
         txn();
         db.close();
 
-        // Update state, clear salt
+        // Update state, keep salt so password persists across cycles
         entry.ssnState = 'decrypted';
-        entry.ssnSalt = null;
         saveDatabasesList(list);
 
         return { success: true, recordsUpdated: rows.length };

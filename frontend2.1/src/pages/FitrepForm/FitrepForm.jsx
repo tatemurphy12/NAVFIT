@@ -51,6 +51,14 @@ export default function FitrepForm() {
 
   const [decryptPassword, setDecryptPassword] = useState('');
   const [decryptError, setDecryptError] = useState('');
+  const decryptPasswordRef = React.useRef(null);
+
+  // Force focus on decrypt password input when modal opens
+  useEffect(() => {
+    if (showDecryptModal && decryptPasswordRef.current) {
+      setTimeout(() => decryptPasswordRef.current.focus(), 50);
+    }
+  }, [showDecryptModal]);
 
   // Pre-fill data if editing an existing report
   useEffect(() => {
@@ -321,15 +329,17 @@ const totalLines = calculateTrueLines();
       </div>
       
       {/* BLOCK 4: SSN */}
-      <div 
-        className={`navfit-cell ${getError('ssn').isError ? "input-error" : ""}`} 
-        style={{ flex: 1.5 }}
+      <div
+        className={`navfit-cell ${getError('ssn').isError ? "input-error" : ""}`}
+        style={{ flex: 1.5, ...(ssnEncrypted ? { backgroundColor: '#e8e8e8', opacity: 0.8 } : {}) }}
       >
-        <label>4. SSN</label>
+        <label>4. SSN {ssnEncrypted && '(Encrypted)'}</label>
         <input
           className="navfit-input"
           value={ssnEncrypted ? '\u2022\u2022\u2022-\u2022\u2022-\u2022\u2022\u2022\u2022' : formData.ssn}
           readOnly={ssnEncrypted}
+          disabled={ssnEncrypted}
+          style={ssnEncrypted ? { backgroundColor: '#d0d0d0', color: '#666', cursor: 'not-allowed' } : {}}
           onChange={(e) => {
             // Allow only digits and hyphens
             let val = e.target.value.replace(/[^0-9-]/g, '');
@@ -878,15 +888,17 @@ const totalLines = calculateTrueLines();
       </div>
 
       {/* BLOCK 27: SENIOR SSN */}
-      <div 
-        className={`navfit-cell ${getError('reportSSN').isError ? "input-error" : ""}`} 
-        style={{ flex: 1, borderRight: '1px solid black', minWidth: 0 }}
+      <div
+        className={`navfit-cell ${getError('reportSSN').isError ? "input-error" : ""}`}
+        style={{ flex: 1, borderRight: '1px solid black', minWidth: 0, ...(ssnEncrypted ? { backgroundColor: '#e8e8e8', opacity: 0.8 } : {}) }}
       >
-        <label>27. SSN</label>
+        <label>27. SSN {ssnEncrypted && '(Encrypted)'}</label>
         <input
           className="navfit-input"
           value={ssnEncrypted ? '\u2022\u2022\u2022-\u2022\u2022-\u2022\u2022\u2022\u2022' : (formData.reportSSN || "")}
           readOnly={ssnEncrypted}
+          disabled={ssnEncrypted}
+          style={ssnEncrypted ? { backgroundColor: '#d0d0d0', color: '#666', cursor: 'not-allowed' } : {}}
           onChange={(e) => {
             // 1. Filter the input
             let val = e.target.value.replace(/[^0-9-]/g, '');
@@ -1654,6 +1666,7 @@ const totalLines = calculateTrueLines();
             </p>
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Password</label>
             <input
+              ref={decryptPasswordRef}
               type="password"
               value={decryptPassword}
               onChange={(e) => setDecryptPassword(e.target.value)}
@@ -1670,7 +1683,6 @@ const totalLines = calculateTrueLines();
                 border: '1px solid #444', background: '#2a2a3e', color: '#fff',
                 fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box'
               }}
-              autoFocus
             />
             {decryptError && (
               <p style={{ color: '#ff6b6b', fontSize: '13px', margin: '0 0 12px 0' }}>{decryptError}</p>
