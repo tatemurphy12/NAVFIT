@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './HomePage.css';
 import logo from './logo.png';
@@ -12,10 +12,11 @@ export default function HomePage() {
   const [ssnState, setSsnState] = useState('decrypted');
   const [hasPassword, setHasPassword] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordModalKey, setPasswordModalKey] = useState(0);
   const [passwordInput, setPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const passwordRef = useRef(null);
+  const [ssnMessage, setSsnMessage] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -137,17 +138,11 @@ export default function HomePage() {
     }
   };
 
-  // Force focus on password input when modal opens (autoFocus doesn't work in Electron)
-  useEffect(() => {
-    if (showPasswordModal && passwordRef.current) {
-      setTimeout(() => passwordRef.current.focus(), 50);
-    }
-  }, [showPasswordModal]);
-
   const handleToggleSSNEncryption = () => {
     setPasswordInput('');
     setConfirmPasswordInput('');
     setPasswordError('');
+    setPasswordModalKey(prev => prev + 1);
     setShowPasswordModal(true);
   };
 
@@ -172,7 +167,7 @@ export default function HomePage() {
         setSsnState('encrypted');
         setHasPassword(true);
         setShowPasswordModal(false);
-        alert(`SSNs encrypted successfully. ${result.recordsUpdated} report(s) updated.`);
+        setSsnMessage(`SSNs encrypted. ${result.recordsUpdated} report(s) updated.`);
         const rows = await window.api.loadFitreps(openedDb.path);
         if (!rows.error) setFitreps(rows || []);
       } else {
@@ -184,7 +179,7 @@ export default function HomePage() {
       if (result.success) {
         setSsnState('decrypted');
         setShowPasswordModal(false);
-        alert(`SSNs decrypted successfully. ${result.recordsUpdated} report(s) updated.`);
+        setSsnMessage(`SSNs decrypted. ${result.recordsUpdated} report(s) updated.`);
         const rows = await window.api.loadFitreps(openedDb.path);
         if (!rows.error) setFitreps(rows || []);
       } else {
@@ -278,17 +273,35 @@ export default function HomePage() {
           </div>
         </div>
 
-        {showPasswordModal && (
+        {ssnMessage && (
           <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.5)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', zIndex: 1000
-          }}>
-            <div style={{
-              background: '#1e1e2e', borderRadius: '12px', padding: '30px',
-              minWidth: '360px', maxWidth: '420px', color: '#fff',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
-            }}>
+            position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+            background: '#1a6edd', color: '#fff', padding: '12px 24px',
+            borderRadius: '8px', zIndex: 999, fontSize: '14px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)', cursor: 'pointer'
+          }} onClick={() => setSsnMessage(null)}>
+            {ssnMessage}
+          </div>
+        )}
+
+        {showPasswordModal && (
+          <div
+            key={passwordModalKey}
+            style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.5)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', zIndex: 1000
+            }}
+            onMouseDown={(e) => { if (e.target === e.currentTarget) setShowPasswordModal(false); }}
+          >
+            <div
+              style={{
+                background: '#1e1e2e', borderRadius: '12px', padding: '30px',
+                minWidth: '360px', maxWidth: '420px', color: '#fff',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
               <h3 style={{ margin: '0 0 8px 0' }}>
                 {ssnState === 'decrypted' ? 'Encrypt SSNs' : 'Decrypt SSNs'}
               </h3>
@@ -300,15 +313,16 @@ export default function HomePage() {
 
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Password</label>
               <input
-                ref={passwordRef}
                 type="password"
+                autoFocus
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handlePasswordSubmit(); }}
                 style={{
                   width: '100%', padding: '10px', borderRadius: '6px',
-                  border: '1px solid #444', background: '#2a2a3e', color: '#fff',
-                  fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box'
+                  border: '1px solid #444 !important', background: '#2a2a3e', color: '#fff',
+                  fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box',
+                  outline: 'none'
                 }}
               />
 
@@ -323,7 +337,8 @@ export default function HomePage() {
                     style={{
                       width: '100%', padding: '10px', borderRadius: '6px',
                       border: '1px solid #444', background: '#2a2a3e', color: '#fff',
-                      fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box'
+                      fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box',
+                      outline: 'none'
                     }}
                   />
                 </>

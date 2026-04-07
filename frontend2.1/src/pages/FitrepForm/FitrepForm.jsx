@@ -51,12 +51,14 @@ export default function FitrepForm() {
 
   const [decryptPassword, setDecryptPassword] = useState('');
   const [decryptError, setDecryptError] = useState('');
-  const decryptPasswordRef = React.useRef(null);
+  const [decryptModalKey, setDecryptModalKey] = useState(0);
 
-  // Force focus on decrypt password input when modal opens
+  // Increment key each time modal opens to force a fresh remount
   useEffect(() => {
-    if (showDecryptModal && decryptPasswordRef.current) {
-      setTimeout(() => decryptPasswordRef.current.focus(), 50);
+    if (showDecryptModal) {
+      setDecryptModalKey(prev => prev + 1);
+      setDecryptPassword('');
+      setDecryptError('');
     }
   }, [showDecryptModal]);
 
@@ -1653,24 +1655,31 @@ const totalLines = calculateTrueLines();
 
     {/* DECRYPT FOR EXPORT MODAL - rendered outside navfit-paper to avoid CSS conflicts */}
     {showDecryptModal && (
-      <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        background: 'rgba(0,0,0,0.5)', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', zIndex: 1001
-      }}>
-        <div style={{
-          background: '#1e1e2e', borderRadius: '12px', padding: '30px',
-          minWidth: '360px', maxWidth: '420px', color: '#fff',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
-        }}>
+      <div
+        key={decryptModalKey}
+        style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1001
+        }}
+        onMouseDown={(e) => { if (e.target === e.currentTarget) { setShowDecryptModal(false); setDecryptPassword(''); setDecryptError(''); } }}
+      >
+        <div
+          style={{
+            background: '#1e1e2e', borderRadius: '12px', padding: '30px',
+            minWidth: '360px', maxWidth: '420px', color: '#fff',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <h3 style={{ margin: '0 0 8px 0' }}>SSNs Are Encrypted</h3>
           <p style={{ color: '#aaa', fontSize: '14px', margin: '0 0 20px 0' }}>
             SSNs must be decrypted before exporting. Enter your password to decrypt and continue.
           </p>
           <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Password</label>
           <input
-            ref={decryptPasswordRef}
             type="password"
+            autoFocus
             value={decryptPassword}
             onChange={(e) => setDecryptPassword(e.target.value)}
             onKeyDown={(e) => {
@@ -1684,7 +1693,8 @@ const totalLines = calculateTrueLines();
             style={{
               width: '100%', padding: '10px', borderRadius: '6px',
               border: '1px solid #444', background: '#2a2a3e', color: '#fff',
-              fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box'
+              fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box',
+              outline: 'none'
             }}
           />
           {decryptError && (
