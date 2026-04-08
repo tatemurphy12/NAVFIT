@@ -239,6 +239,11 @@ ipcMain.handle('loadFitreps', async (event, dbPath) => {
 ipcMain.handle('removeDatabase', async (event, dbPath) => {
     try {
         let list = getDatabasesList();
+        // Block removal if SSNs are currently encrypted
+        const entry = list.find(db => db.path === dbPath);
+        if (entry && entry.ssnState === 'encrypted') {
+            return { success: false, message: 'Cannot remove a database with encrypted SSNs. Please decrypt SSNs first.' };
+        }
         // Filter out the database that matches the provided path
         list = list.filter(db => db.path !== dbPath);
         saveDatabasesList(list);
@@ -591,6 +596,18 @@ ipcMain.handle('encryptSSNs', async (event, { dbPath, password }) => {
             ? Buffer.from(entry.ssnSalt, 'base64')
             : crypto.randomBytes(SSN_SALT_LENGTH);
         const key = deriveKey(password, salt);
+
+        // If re-encrypting (salt and verify token already exist), validate the password first
+        if (entry.ssnSalt && entry.ssnVerifyToken) {
+            try {
+                const testResult = decryptSSN(entry.ssnVerifyToken, key);
+                if (testResult !== 'NAVFIT26_VERIFY') {
+                    return { success: false, error: 'Incorrect password' };
+                }
+            } catch (verifyErr) {
+                return { success: false, error: 'Incorrect password' };
+            }
+        }
 
         // Create a verification token so we can validate password on decrypt
         // even if all SSN fields are empty

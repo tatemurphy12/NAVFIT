@@ -126,8 +126,12 @@ export default function HomePage() {
       "Remove this database from the recent list?\n\n(The actual file will NOT be deleted from your computer)."
     );
     if (confirmed) {
-      await window.api.removeDatabase(dbPath);
-      await loadDatabases(); // Refresh the grid
+      const result = await window.api.removeDatabase(dbPath);
+      if (result.success) {
+        await loadDatabases(); // Refresh the grid
+      } else if (result.message) {
+        setNotification({ message: result.message, type: 'error' });
+      }
     }
   };
 
