@@ -469,7 +469,7 @@ export default function HomePage() {
 
       <div className="homepage-buttons">
         <button className="btn btn-primary" onClick={handleCreate}>+ New Database</button>
-        <button className="btn btn-secondary" onClick={handleOpenDatabase}>📂 Open Database</button>
+        <button className="btn btn-secondary" onClick={handleOpenDatabase}> Open Database</button>
       </div>
 
       <div className="databases-section">
