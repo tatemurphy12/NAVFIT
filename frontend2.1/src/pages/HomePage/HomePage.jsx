@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './HomePage.css';
 import logo from './logo.png';
@@ -17,8 +17,33 @@ export default function HomePage() {
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [ssnMessage, setSsnMessage] = useState(null);
+
+  // General notification toast (replaces window.alert)
+  const [notification, setNotification] = useState(null); // { message, type: 'success'|'error'|'info' }
+
+  // Custom confirm modal (replaces window.confirm)
+  const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '' });
+  const confirmResolveRef = useRef(null);
+
   const navigate = useNavigate();
   const location = useLocation();
+
+  const showConfirm = (title, message) => {
+    return new Promise((resolve) => {
+      confirmResolveRef.current = resolve;
+      setConfirmModal({ show: true, title, message });
+    });
+  };
+
+  const handleConfirmYes = () => {
+    confirmResolveRef.current?.(true);
+    setConfirmModal({ show: false, title: '', message: '' });
+  };
+
+  const handleConfirmNo = () => {
+    confirmResolveRef.current?.(false);
+    setConfirmModal({ show: false, title: '', message: '' });
+  };
 
   useEffect(() => { loadDatabases(); }, []);
 
@@ -47,7 +72,7 @@ export default function HomePage() {
     if (result.success) {
       await loadDatabases();
     } else if (result.message) {
-      alert("Error creating database: " + result.message);
+      setNotification({ message: "Error creating database: " + result.message, type: 'error' });
     }
   };
 
@@ -56,7 +81,7 @@ export default function HomePage() {
     if (result.success) {
         await loadDatabases();
     } else if (result.error) {
-        alert("Error opening database: " + result.error);
+        setNotification({ message: "Error opening database: " + result.error, type: 'error' });
     }
   };
 
@@ -68,7 +93,7 @@ export default function HomePage() {
       
       // If main.js returns an object with an error instead of an array, catch it
       if (rows.error) {
-          alert(`Cannot find database at: ${db.path}\nIt may have been moved or deleted.`);
+          setNotification({ message: `Cannot find database at: ${db.path}. It may have been moved or deleted.`, type: 'error' });
           setFitrepsLoading(false);
           return;
       }
@@ -96,7 +121,10 @@ export default function HomePage() {
 
   const handleRemoveDatabase = async (e, dbPath) => {
     e.stopPropagation(); // Crucial: Prevents the card click from opening the folder!
-    const confirmed = window.confirm("Remove this database from the recent list?\n\n(The actual file will NOT be deleted from your computer).");
+    const confirmed = await showConfirm(
+      "Remove Database",
+      "Remove this database from the recent list?\n\n(The actual file will NOT be deleted from your computer)."
+    );
     if (confirmed) {
       await window.api.removeDatabase(dbPath);
       await loadDatabases(); // Refresh the grid
@@ -127,7 +155,7 @@ export default function HomePage() {
   };
 
   const handleDeleteFitrep = async (reportId) => {
-    const confirmed = window.confirm('Are you sure you want to delete this report?');
+    const confirmed = await showConfirm("Delete Report", "Are you sure you want to delete this report?");
     if (!confirmed) return;
     try {
       await window.api.deleteFitrep({ dbPath: openedDb.path, reportId });
@@ -144,6 +172,14 @@ export default function HomePage() {
     const timer = setTimeout(() => setSsnMessage(null), 3000);
     return () => clearTimeout(timer);
   }, [ssnMessage]);
+
+  // Auto-dismiss general notification (errors stay longer)
+  useEffect(() => {
+    if (!notification) return;
+    const delay = notification.type === 'error' ? 6000 : 3000;
+    const timer = setTimeout(() => setNotification(null), delay);
+    return () => clearTimeout(timer);
+  }, [notification]);
 
   const handleToggleSSNEncryption = () => {
     setPasswordInput('');
@@ -199,12 +235,12 @@ export default function HomePage() {
     try {
       const result = await window.api.exportACCDB(openedDb.path);
       if (result.success) {
-        alert(`ACCDB exported successfully!\n\n${result.path}`);
+        setNotification({ message: `ACCDB exported successfully! ${result.path}`, type: 'success' });
       } else if (result.error && result.error !== "ACCDB Export cancelled.") {
-        alert(`Export failed:\n${result.error}`);
+        setNotification({ message: `Export failed: ${result.error}`, type: 'error' });
       }
     } catch (err) {
-      alert(`Export failed:\n${err.message || err}`);
+      setNotification({ message: `Export failed: ${err.message || err}`, type: 'error' });
     }
   };
 
@@ -288,6 +324,48 @@ export default function HomePage() {
             boxShadow: '0 4px 12px rgba(0,0,0,0.3)', cursor: 'pointer'
           }} onClick={() => setSsnMessage(null)}>
             {ssnMessage}
+          </div>
+        )}
+
+        {notification && (
+          <div style={{
+            position: 'fixed', top: '60px', left: '50%', transform: 'translateX(-50%)',
+            background: notification.type === 'error' ? '#d9534f' : notification.type === 'success' ? '#28a745' : '#1a6edd',
+            color: '#fff', padding: '12px 24px',
+            borderRadius: '8px', zIndex: 999, fontSize: '14px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)', cursor: 'pointer',
+            maxWidth: '500px', textAlign: 'center'
+          }} onClick={() => setNotification(null)}>
+            {notification.message}
+          </div>
+        )}
+
+        {confirmModal.show && (
+          <div
+            style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.5)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', zIndex: 1002
+            }}
+            onMouseDown={(e) => { if (e.target === e.currentTarget) handleConfirmNo(); }}
+          >
+            <div
+              style={{
+                background: '#1e1e2e', borderRadius: '12px', padding: '30px',
+                minWidth: '340px', maxWidth: '420px', color: '#fff',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ margin: '0 0 12px 0' }}>{confirmModal.title}</h3>
+              <p style={{ color: '#ccc', fontSize: '14px', margin: '0 0 20px 0', whiteSpace: 'pre-line' }}>
+                {confirmModal.message}
+              </p>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button className="btn btn-ghost" onClick={handleConfirmNo}>Cancel</button>
+                <button className="btn btn-danger" onClick={handleConfirmYes}>Confirm</button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -430,7 +508,48 @@ export default function HomePage() {
           </>
         )}
       </div>
+
+      {notification && (
+        <div style={{
+          position: 'fixed', top: '60px', left: '50%', transform: 'translateX(-50%)',
+          background: notification.type === 'error' ? '#d9534f' : notification.type === 'success' ? '#28a745' : '#1a6edd',
+          color: '#fff', padding: '12px 24px',
+          borderRadius: '8px', zIndex: 999, fontSize: '14px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)', cursor: 'pointer',
+          maxWidth: '500px', textAlign: 'center'
+        }} onClick={() => setNotification(null)}>
+          {notification.message}
+        </div>
+      )}
+
+      {confirmModal.show && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', zIndex: 1002
+          }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) handleConfirmNo(); }}
+        >
+          <div
+            style={{
+              background: '#1e1e2e', borderRadius: '12px', padding: '30px',
+              minWidth: '340px', maxWidth: '420px', color: '#fff',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 12px 0' }}>{confirmModal.title}</h3>
+            <p style={{ color: '#ccc', fontSize: '14px', margin: '0 0 20px 0', whiteSpace: 'pre-line' }}>
+              {confirmModal.message}
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button className="btn btn-ghost" onClick={handleConfirmNo}>Cancel</button>
+              <button className="btn btn-danger" onClick={handleConfirmYes}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

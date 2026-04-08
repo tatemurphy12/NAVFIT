@@ -592,6 +592,10 @@ ipcMain.handle('encryptSSNs', async (event, { dbPath, password }) => {
             : crypto.randomBytes(SSN_SALT_LENGTH);
         const key = deriveKey(password, salt);
 
+        // Create a verification token so we can validate password on decrypt
+        // even if all SSN fields are empty
+        const verifyToken = encryptSSN('NAVFIT26_VERIFY', key);
+
         // Open the database and encrypt all SSN and RSSSN values
         const db = new Database(dbPath);
         const rows = db.prepare('SELECT rowid, SSN, RSSSN FROM [Reports]').all();
@@ -607,9 +611,10 @@ ipcMain.handle('encryptSSNs', async (event, { dbPath, password }) => {
         txn();
         db.close();
 
-        // Store salt and state (NOT the password or key)
+        // Store salt, verify token, and state (NOT the password or key)
         entry.ssnState = 'encrypted';
         entry.ssnSalt = salt.toString('base64');
+        entry.ssnVerifyToken = verifyToken;
         entry.ssnPassword = null; // Never store the password
         saveDatabasesList(list);
 
@@ -631,6 +636,35 @@ ipcMain.handle('decryptSSNs', async (event, { dbPath, password }) => {
         // Re-derive the key from the password and stored salt
         const salt = Buffer.from(entry.ssnSalt, 'base64');
         const key = deriveKey(password, salt);
+
+        // Pre-validate password using stored verification token before touching the database
+        if (entry.ssnVerifyToken) {
+            try {
+                const testResult = decryptSSN(entry.ssnVerifyToken, key);
+                if (testResult !== 'NAVFIT26_VERIFY') {
+                    return { success: false, error: 'Incorrect password' };
+                }
+            } catch (verifyErr) {
+                return { success: false, error: 'Incorrect password' };
+            }
+        } else {
+            // Legacy fallback: no verify token stored (encrypted before this feature).
+            // Find one encrypted SSN to test the password against.
+            const testDb = new Database(dbPath, { readonly: true });
+            const testRow = testDb.prepare(
+                "SELECT SSN, RSSSN FROM [Reports] WHERE SSN LIKE 'ENC:%' OR RSSSN LIKE 'ENC:%' LIMIT 1"
+            ).get();
+            testDb.close();
+            if (testRow) {
+                try {
+                    const testValue = testRow.SSN?.startsWith('ENC:') ? testRow.SSN : testRow.RSSSN;
+                    decryptSSN(testValue, key);
+                } catch (verifyErr) {
+                    return { success: false, error: 'Incorrect password' };
+                }
+            }
+            // If no encrypted rows exist, no data to protect — allow state reset
+        }
 
         // Open the database and decrypt all SSN and RSSSN values
         const db = new Database(dbPath);

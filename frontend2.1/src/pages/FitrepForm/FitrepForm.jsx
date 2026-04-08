@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../../styles/FitrepForm.css'; 
 import validators from '../../utils/formatters';
@@ -52,6 +52,27 @@ export default function FitrepForm() {
   const [decryptPassword, setDecryptPassword] = useState('');
   const [decryptError, setDecryptError] = useState('');
   const [decryptModalKey, setDecryptModalKey] = useState(0);
+
+  // Custom confirm modal (replaces window.confirm)
+  const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '' });
+  const confirmResolveRef = useRef(null);
+
+  const showConfirm = (title, message) => {
+    return new Promise((resolve) => {
+      confirmResolveRef.current = resolve;
+      setConfirmModal({ show: true, title, message });
+    });
+  };
+
+  const handleConfirmYes = () => {
+    confirmResolveRef.current?.(true);
+    setConfirmModal({ show: false, title: '', message: '' });
+  };
+
+  const handleConfirmNo = () => {
+    confirmResolveRef.current?.(false);
+    setConfirmModal({ show: false, title: '', message: '' });
+  };
 
   // Increment key each time modal opens to force a fresh remount
   useEffect(() => {
@@ -236,10 +257,10 @@ const totalLines = calculateTrueLines();
       <div style={{ padding: '10px 0', display: 'flex', justifyContent: 'flex-start' }}>
         <button 
           className="btn btn-secondary" 
-          onClick={() => {
+          onClick={async () => {
             if (hasUnsavedChanges) {
-              const confirm = window.confirm("You have unsaved changes! Are you sure you want to leave without saving?");
-              if (!confirm) return;
+              const confirmed = await showConfirm("Unsaved Changes", "You have unsaved changes! Are you sure you want to leave without saving?");
+              if (!confirmed) return;
             }
             navigate('/', { state: { openDb: { name: dbPath.split(/[/\\]/).pop(), path: dbPath } } });
           }}
@@ -1649,6 +1670,46 @@ const totalLines = calculateTrueLines();
           <h3 style={{ color: modalContent.isError ? 'red' : 'green' }}>{modalContent.title}</h3>
           <p>{modalContent.text}</p>
           <button onClick={() => setShowModal(false)}>Close</button>
+        </div>
+      </div>
+    )}
+
+    {/* CONFIRM MODAL - replaces window.confirm for non-blocking UX */}
+    {confirmModal.show && (
+      <div
+        style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1002
+        }}
+        onMouseDown={(e) => { if (e.target === e.currentTarget) handleConfirmNo(); }}
+      >
+        <div
+          style={{
+            background: '#1e1e2e', borderRadius: '12px', padding: '30px',
+            minWidth: '340px', maxWidth: '420px', color: '#fff',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <h3 style={{ margin: '0 0 12px 0' }}>{confirmModal.title}</h3>
+          <p style={{ color: '#ccc', fontSize: '14px', margin: '0 0 20px 0', whiteSpace: 'pre-line' }}>
+            {confirmModal.message}
+          </p>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button
+              style={{ background: '#555', border: 'none', padding: '8px 16px', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
+              onClick={handleConfirmNo}
+            >
+              Cancel
+            </button>
+            <button
+              style={{ background: '#d9534f', border: 'none', padding: '8px 16px', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
+              onClick={handleConfirmYes}
+            >
+              Confirm
+            </button>
+          </div>
         </div>
       </div>
     )}
