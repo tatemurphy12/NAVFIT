@@ -306,10 +306,10 @@ export default function HomePage() {
                       <td>{report.Rate || '—'}</td>
                       <td className="action-cell">
                         <button className="btn btn-secondary" onClick={() => handleEditReport(report)}>
-                          ✏️ Edit / View
+                           Edit / View
                         </button>
                         <button className="btn btn-danger" onClick={() => handleDeleteFitrep(report.ReportID)}>
-                          🗑 Delete
+                           Delete
                         </button>
                       </td>
                     </tr>
