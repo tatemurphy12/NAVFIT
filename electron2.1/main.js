@@ -543,6 +543,20 @@ ipcMain.handle('getDbSsnState', async (event, dbPath) => {
     const list = getDatabasesList();
     const entry = list.find(d => d.path === dbPath);
     if (!entry) return { ssnState: 'decrypted', hasPassword: false };
+
+    // Live sync: if metadata says decrypted, verify against actual database content
+    // This catches cases where the .db file was replaced with an encrypted copy
+    if ((entry.ssnState || 'decrypted') === 'decrypted') {
+        const detection = detectEncryptedSSNs(dbPath);
+        if (detection.encrypted) {
+            entry.ssnState = 'encrypted';
+            if (detection.salt) {
+                entry.ssnSalt = detection.salt;
+            }
+            saveDatabasesList(list);
+        }
+    }
+
     return {
         ssnState: entry.ssnState || 'decrypted',
         hasPassword: !!entry.ssnSalt
@@ -559,29 +573,71 @@ function deriveKey(password, salt) {
     return crypto.pbkdf2Sync(password, salt, SSN_PBKDF2_ITERATIONS, SSN_KEY_LENGTH, 'sha256');
 }
 
-function encryptSSN(plaintext, key) {
+function encryptSSN(plaintext, key, salt) {
     if (!plaintext || plaintext.trim() === '') return plaintext;
     const iv = crypto.randomBytes(SSN_IV_LENGTH);
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
     let encrypted = cipher.update(plaintext, 'utf8', 'base64');
     encrypted += cipher.final('base64');
     const authTag = cipher.getAuthTag();
-    // Format: ENC:<iv>:<authTag>:<ciphertext>
-    return `ENC:${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`;
+    // Format: ENC:<salt>:<iv>:<authTag>:<ciphertext>  (salt embedded for portability)
+    return `ENC:${salt.toString('base64')}:${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`;
 }
 
 function decryptSSN(encryptedText, key) {
     if (!encryptedText || !encryptedText.startsWith('ENC:')) return encryptedText;
     const parts = encryptedText.split(':');
-    if (parts.length !== 4) return encryptedText;
-    const iv = Buffer.from(parts[1], 'base64');
-    const authTag = Buffer.from(parts[2], 'base64');
-    const ciphertext = parts[3];
+    let iv, authTag, ciphertext;
+    if (parts.length === 5) {
+        // New format: ENC:<salt>:<iv>:<authTag>:<ciphertext>  (salt already used for key derivation)
+        iv = Buffer.from(parts[2], 'base64');
+        authTag = Buffer.from(parts[3], 'base64');
+        ciphertext = parts[4];
+    } else if (parts.length === 4) {
+        // Legacy format: ENC:<iv>:<authTag>:<ciphertext>
+        iv = Buffer.from(parts[1], 'base64');
+        authTag = Buffer.from(parts[2], 'base64');
+        ciphertext = parts[3];
+    } else {
+        return encryptedText;
+    }
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(authTag);
     let decrypted = decipher.update(ciphertext, 'base64', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
+}
+
+// Extract the embedded salt from a 5-part encrypted value, or null for legacy 4-part format
+function extractSaltFromEncrypted(encryptedText) {
+    if (!encryptedText || !encryptedText.startsWith('ENC:')) return null;
+    const parts = encryptedText.split(':');
+    if (parts.length === 5) {
+        return Buffer.from(parts[1], 'base64');
+    }
+    return null; // Legacy 4-part format — salt not embedded
+}
+
+// Detect if a database has encrypted SSNs and extract salt if available
+function detectEncryptedSSNs(dbPath) {
+    try {
+        const db = new Database(dbPath, { readonly: true });
+        const row = db.prepare(
+            "SELECT SSN, RSSSN FROM [Reports] WHERE SSN LIKE 'ENC:%' OR RSSSN LIKE 'ENC:%' LIMIT 1"
+        ).get();
+        db.close();
+
+        if (!row) return { encrypted: false, salt: null };
+
+        // Try to extract embedded salt from the encrypted value
+        const encValue = row.SSN?.startsWith('ENC:') ? row.SSN : row.RSSSN;
+        const salt = extractSaltFromEncrypted(encValue);
+
+        return { encrypted: true, salt: salt ? salt.toString('base64') : null };
+    } catch (err) {
+        console.error('detectEncryptedSSNs error:', err);
+        return { encrypted: false, salt: null };
+    }
 }
 
 ipcMain.handle('encryptSSNs', async (event, { dbPath, password }) => {
@@ -611,7 +667,7 @@ ipcMain.handle('encryptSSNs', async (event, { dbPath, password }) => {
 
         // Create a verification token so we can validate password on decrypt
         // even if all SSN fields are empty
-        const verifyToken = encryptSSN('NAVFIT26_VERIFY', key);
+        const verifyToken = encryptSSN('NAVFIT26_VERIFY', key, salt);
 
         // Open the database and encrypt all SSN and RSSSN values
         const db = new Database(dbPath);
@@ -620,8 +676,8 @@ ipcMain.handle('encryptSSNs', async (event, { dbPath, password }) => {
 
         const txn = db.transaction(() => {
             for (const row of rows) {
-                const encSSN = encryptSSN(row.SSN, key);
-                const encRSSSN = encryptSSN(row.RSSSN, key);
+                const encSSN = encryptSSN(row.SSN, key, salt);
+                const encRSSSN = encryptSSN(row.RSSSN, key, salt);
                 updateStmt.run(encSSN, encRSSSN, row.rowid);
             }
         });
@@ -648,10 +704,25 @@ ipcMain.handle('decryptSSNs', async (event, { dbPath, password }) => {
         const entry = list.find(d => d.path === dbPath);
         if (!entry) return { success: false, error: 'Database not found in list' };
         if (entry.ssnState !== 'encrypted') return { success: false, error: 'SSNs are not encrypted' };
-        if (!entry.ssnSalt) return { success: false, error: 'No encryption salt found — cannot decrypt' };
+
+        // Get salt: prefer stored salt, fall back to extracting from encrypted values
+        let salt;
+        if (entry.ssnSalt) {
+            salt = Buffer.from(entry.ssnSalt, 'base64');
+        } else {
+            // Database was loaded with encrypted SSNs — try extracting embedded salt
+            const detection = detectEncryptedSSNs(dbPath);
+            if (detection.salt) {
+                salt = Buffer.from(detection.salt, 'base64');
+                // Persist the extracted salt for future use
+                entry.ssnSalt = detection.salt;
+                saveDatabasesList(list);
+            } else {
+                return { success: false, error: 'No encryption salt found — this database may have been encrypted with an older version that did not embed the salt.' };
+            }
+        }
 
         // Re-derive the key from the password and stored salt
-        const salt = Buffer.from(entry.ssnSalt, 'base64');
         const key = deriveKey(password, salt);
 
         // Pre-validate password using stored verification token before touching the database
@@ -747,7 +818,16 @@ ipcMain.handle('uploadDatabase', async () => {
 
         // Prevent duplicate entries in the tracking list
         if (!list.find(d => d.path === dbPath)) {
-            list.push({ name, path: dbPath, ssnState: 'decrypted', ssnPassword: null });
+            // Check if the database already has encrypted SSNs
+            const detection = detectEncryptedSSNs(dbPath);
+            const entry = { name, path: dbPath, ssnState: 'decrypted', ssnPassword: null };
+            if (detection.encrypted) {
+                entry.ssnState = 'encrypted';
+                if (detection.salt) {
+                    entry.ssnSalt = detection.salt;
+                }
+            }
+            list.push(entry);
             saveDatabasesList(list);
         }
 
