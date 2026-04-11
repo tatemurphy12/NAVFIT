@@ -811,10 +811,20 @@ ipcMain.handle('uploadDatabase', async () => {
         const name = path.basename(dbPath);
         const list = getDatabasesList();
 
-        // Prevent duplicate entries in the tracking list
-        if (!list.find(d => d.path === dbPath)) {
-            // Check if the database already has encrypted SSNs
-            const detection = detectEncryptedSSNs(dbPath);
+        // Check if the database already has encrypted SSNs
+        const detection = detectEncryptedSSNs(dbPath);
+        const existing = list.find(d => d.path === dbPath);
+
+        if (existing) {
+            // Sync encryption state for existing entries
+            if (detection.encrypted && existing.ssnState !== 'encrypted') {
+                existing.ssnState = 'encrypted';
+                if (detection.salt) {
+                    existing.ssnSalt = detection.salt;
+                }
+                saveDatabasesList(list);
+            }
+        } else {
             const entry = { name, path: dbPath, ssnState: 'decrypted', ssnPassword: null };
             if (detection.encrypted) {
                 entry.ssnState = 'encrypted';
