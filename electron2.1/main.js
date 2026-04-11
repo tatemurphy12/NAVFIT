@@ -680,16 +680,16 @@ ipcMain.handle('encryptSSNs', async (event, { dbPath, password }) => {
 
         // Open the database and encrypt all SSN and RSSSN values
         const db = new Database(dbPath);
-        const rows = db.prepare('SELECT rowid, SSN, RSSSN FROM [Reports]').all();
+        const rows = db.prepare('SELECT ReportID, SSN, RSSSN FROM [Reports]').all();
         console.log(`[encryptSSNs] Found ${rows.length} rows to encrypt in ${dbPath}`);
-        const updateStmt = db.prepare('UPDATE [Reports] SET SSN = ?, RSSSN = ? WHERE rowid = ?');
+        const updateStmt = db.prepare('UPDATE [Reports] SET SSN = ?, RSSSN = ? WHERE ReportID = ?');
 
         const txn = db.transaction(() => {
             for (const row of rows) {
                 const encSSN = encryptSSN(row.SSN, key, salt);
                 const encRSSSN = encryptSSN(row.RSSSN, key, salt);
-                console.log(`[encryptSSNs] rowid=${row.rowid}: SSN "${row.SSN}" -> "${encSSN?.substring(0, 20)}...", RSSSN "${row.RSSSN}" -> "${encRSSSN?.substring(0, 20)}..."`);
-                updateStmt.run(encSSN, encRSSSN, row.rowid);
+                console.log(`[encryptSSNs] ReportID=${row.ReportID}: SSN "${row.SSN}" -> "${encSSN?.substring(0, 20)}...", RSSSN "${row.RSSSN}" -> "${encRSSSN?.substring(0, 20)}..."`);
+                updateStmt.run(encSSN, encRSSSN, row.ReportID);
             }
         });
         txn();
@@ -697,9 +697,9 @@ ipcMain.handle('encryptSSNs', async (event, { dbPath, password }) => {
 
         // Verify the write persisted
         const verifyDb = new Database(dbPath, { readonly: true });
-        const verifyRows = verifyDb.prepare('SELECT rowid, SSN, RSSSN FROM [Reports]').all();
+        const verifyRows = verifyDb.prepare('SELECT ReportID, SSN, RSSSN FROM [Reports]').all();
         for (const vr of verifyRows) {
-            console.log(`[encryptSSNs] VERIFY rowid=${vr.rowid}: SSN="${vr.SSN?.substring(0, 30)}...", RSSSN="${vr.RSSSN?.substring(0, 30)}..."`);
+            console.log(`[encryptSSNs] VERIFY ReportID=${vr.ReportID}: SSN="${vr.SSN?.substring(0, 30)}...", RSSSN="${vr.RSSSN?.substring(0, 30)}..."`);
         }
         verifyDb.close();
 
@@ -775,14 +775,14 @@ ipcMain.handle('decryptSSNs', async (event, { dbPath, password }) => {
 
         // Open the database and decrypt all SSN and RSSSN values
         const db = new Database(dbPath);
-        const rows = db.prepare('SELECT rowid, SSN, RSSSN FROM [Reports]').all();
-        const updateStmt = db.prepare('UPDATE [Reports] SET SSN = ?, RSSSN = ? WHERE rowid = ?');
+        const rows = db.prepare('SELECT ReportID, SSN, RSSSN FROM [Reports]').all();
+        const updateStmt = db.prepare('UPDATE [Reports] SET SSN = ?, RSSSN = ? WHERE ReportID = ?');
 
         const txn = db.transaction(() => {
             for (const row of rows) {
                 const decSSN = decryptSSN(row.SSN, key);
                 const decRSSSN = decryptSSN(row.RSSSN, key);
-                updateStmt.run(decSSN, decRSSSN, row.rowid);
+                updateStmt.run(decSSN, decRSSSN, row.ReportID);
             }
         });
         txn();
