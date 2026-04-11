@@ -239,11 +239,6 @@ ipcMain.handle('loadFitreps', async (event, dbPath) => {
 ipcMain.handle('removeDatabase', async (event, dbPath) => {
     try {
         let list = getDatabasesList();
-        // Block removal if SSNs are currently encrypted
-        const entry = list.find(db => db.path === dbPath);
-        if (entry && entry.ssnState === 'encrypted') {
-            return { success: false, message: 'Cannot remove a database with encrypted SSNs. Please decrypt SSNs first.' };
-        }
         // Filter out the database that matches the provided path
         list = list.filter(db => db.path !== dbPath);
         saveDatabasesList(list);
