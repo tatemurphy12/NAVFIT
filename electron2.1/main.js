@@ -174,9 +174,12 @@ ipcMain.handle('save-fitrep', async (e, payload) => {
 
         // If SSNs are encrypted, preserve the encrypted values from the database
         // instead of overwriting with plaintext or masked values from the frontend
-        if (isDbEncrypted(targetDb) && reportId) {
+        const encrypted = isDbEncrypted(targetDb);
+        console.log(`[save-fitrep] dbPath=${targetDb}, reportId=${reportId}, encrypted=${encrypted}, incoming SSN="${data.SSN?.substring(0, 20)}", RSSSN="${data.RSSSN?.substring(0, 20)}"`);
+        if (encrypted && reportId) {
             const existing = db.prepare('SELECT SSN, RSSSN FROM [Reports] WHERE ReportID = ?').get(reportId);
             if (existing) {
+                console.log(`[save-fitrep] PRESERVING encrypted SSN="${existing.SSN?.substring(0, 20)}", RSSSN="${existing.RSSSN?.substring(0, 20)}"`);
                 data.SSN = existing.SSN;
                 data.RSSSN = existing.RSSSN;
             }
@@ -631,6 +634,7 @@ function detectEncryptedSSNs(dbPath) {
             "SELECT SSN, RSSSN FROM [Reports] WHERE SSN LIKE 'ENC:%' OR RSSSN LIKE 'ENC:%' LIMIT 1"
         ).get();
         db.close();
+        console.log(`[detectEncryptedSSNs] path=${dbPath}, found=${!!row}, SSN="${row?.SSN?.substring(0, 30)}", RSSSN="${row?.RSSSN?.substring(0, 30)}"`);
 
         if (!row) return { encrypted: false, salt: null };
 
@@ -677,17 +681,27 @@ ipcMain.handle('encryptSSNs', async (event, { dbPath, password }) => {
         // Open the database and encrypt all SSN and RSSSN values
         const db = new Database(dbPath);
         const rows = db.prepare('SELECT rowid, SSN, RSSSN FROM [Reports]').all();
+        console.log(`[encryptSSNs] Found ${rows.length} rows to encrypt in ${dbPath}`);
         const updateStmt = db.prepare('UPDATE [Reports] SET SSN = ?, RSSSN = ? WHERE rowid = ?');
 
         const txn = db.transaction(() => {
             for (const row of rows) {
                 const encSSN = encryptSSN(row.SSN, key, salt);
                 const encRSSSN = encryptSSN(row.RSSSN, key, salt);
+                console.log(`[encryptSSNs] rowid=${row.rowid}: SSN "${row.SSN}" -> "${encSSN?.substring(0, 20)}...", RSSSN "${row.RSSSN}" -> "${encRSSSN?.substring(0, 20)}..."`);
                 updateStmt.run(encSSN, encRSSSN, row.rowid);
             }
         });
         txn();
         db.close();
+
+        // Verify the write persisted
+        const verifyDb = new Database(dbPath, { readonly: true });
+        const verifyRows = verifyDb.prepare('SELECT rowid, SSN, RSSSN FROM [Reports]').all();
+        for (const vr of verifyRows) {
+            console.log(`[encryptSSNs] VERIFY rowid=${vr.rowid}: SSN="${vr.SSN?.substring(0, 30)}...", RSSSN="${vr.RSSSN?.substring(0, 30)}..."`);
+        }
+        verifyDb.close();
 
         // Store salt, verify token, and state (NOT the password or key)
         entry.ssnState = 'encrypted';
