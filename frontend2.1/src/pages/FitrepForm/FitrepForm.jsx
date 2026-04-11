@@ -13,21 +13,22 @@ export default function FitrepForm() {
 
   const location = useLocation();
   const navigate = useNavigate();
+  const saveRef = useRef();
     
-  // Extract the routing data passed by HomePage
+  // Extract routing data
   const { 
       dbPath = null, 
       reportId = null, 
       fitrep = null 
   } = location.state || {};
 
-  // Track the report ID so we know if we are updating or inserting
+  // Component State
   const [currentReportId, setCurrentReportId] = useState(reportId);
   const [isDateRepFocused, setIsDateRepFocused] = useState(false);
   const [isFromFocused, setIsFromFocused] = useState(false);
   const [isToFocused, setIsToFocused] = useState(false);
 
-  // Pass the dynamic dbPath to your hook instead of the hardcoded one!
+  // Hook Data
   const {
     formData, 
     setFormData,
@@ -53,7 +54,7 @@ export default function FitrepForm() {
   const [decryptError, setDecryptError] = useState('');
   const [decryptModalKey, setDecryptModalKey] = useState(0);
 
-  // Custom confirm modal (replaces window.confirm)
+  // Refs and Modals
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '' });
   const confirmResolveRef = useRef(null);
 
@@ -74,7 +75,7 @@ export default function FitrepForm() {
     setConfirmModal({ show: false, title: '', message: '' });
   };
 
-  // Increment key each time modal opens to force a fresh remount
+  // --- EFFECT 1: Modal Management ---
   useEffect(() => {
     if (showDecryptModal) {
       setDecryptModalKey(prev => prev + 1);
@@ -83,14 +84,33 @@ export default function FitrepForm() {
     }
   }, [showDecryptModal]);
 
-  // Pre-fill data if editing an existing report
+  useEffect(() => {
+      saveRef.current = handleSaveFitrep;
+  }, [handleSaveFitrep]);
+
+  // --- EFFECT 2: Electron Menu Listener (NOW TOP LEVEL) ---
+  useEffect(() => {
+    if (window.api && window.api.onMenuNavigateHome) {
+      const removeListener = window.api.onMenuNavigateHome(() => {
+        console.log("Menu signal received: Returning to Database...");
+        navigate('/'); 
+      });
+
+      return () => {
+        if (typeof removeListener === 'function') {
+          removeListener();
+        }
+      };
+    }
+  }, [navigate]);
+
+  // --- EFFECT 3: Data Pre-fill/Population ---
   useEffect(() => {
     const intToPromoRec = (val) => {
         const map = { 0: 'NOB', 1: 'SIGNIFICANT PROBLEMS', 2: 'PROGRESSING', 3: 'PROMOTABLE', 4: 'MUST PROMOTE', 5: 'EARLY PROMOTE' };
         return map[val] || '';
     };
 
-    // Convert a DB trait integer (1-5 or 0) to the radio value format ("1.0"-"5.0", "NOB", or "")
     const traitToRadio = (val) => {
         if (!val || val === 0 || val === '0') return '';
         const str = String(val);
@@ -146,31 +166,32 @@ export default function FitrepForm() {
     };
 
     if (reportId && dbPath && setFormData) {
-        // Fetch the full report from the database
         window.api.loadFitrep({ dbPath, reportId }).then((fullReport) => {
             if (fullReport) {
                 populateForm(fullReport);
             }
         });
     }
+  }, [reportId, dbPath, setFormData]);
 
-    // Menu Listener Logic
-    if (window.api && window.api.onMenuNavigateHome) {
-      // We store the function so we can "turn it off" later
-      const removeListener = window.api.onMenuNavigateHome(() => {
-          navigate('/'); 
-      });
+    // 3. Listen for the 'Save' signal from the File Menu
+    useEffect(() => {
+      if (window.api && window.api.onMenuSaveTrigger) {
+          // We add the console log to help you debug in the browser tools (F12)
+          const removeListener = window.api.onMenuSaveTrigger(async () => {
+              console.log("Save signal received from Menu");
+              if (saveRef.current) {
+                  // Pass the current state values
+                  await saveRef.current(currentReportId, setCurrentReportId);
+              }
+          });
 
-      // This "return" tells React: "If this component closes or reloads, 
-      // stop listening to the menu so we don't have ghost listeners."
-      return () => {
-        if (typeof removeListener === 'function') {
-          removeListener();
-        }
-      };
-    }
-    
-  }, [reportId, dbPath, setFormData, navigate]);
+          return () => {
+              if (typeof removeListener === 'function') removeListener();
+          };
+      }
+      // Added setCurrentReportId for stability
+  }, [currentReportId, setCurrentReportId]);
 
   // Helper to convert Browser Date (YYYY-MM-DD) to Navy Format (YYMMM DD)
   const formatDateToNavy = (dateString) => {

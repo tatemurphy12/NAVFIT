@@ -36,3 +36,11 @@ npm start
 ### 7. Troubleshooting
 * White Screen on Launch: This indicates the dist/ folder is missing or the win.loadFile path in main.js is incorrect. Run npm run build-ui.
 * Module Not Found (sqlite3): Ensure npm install was executed inside the electron2.1/ directory.
+
+## 8. AI Usage & Compliance
+In alignment with Capstone licensing policies, LLMs (Gemini Pro and Claude Pro) were utilized during development for:
+* UI/UX component structure and styling.
+* Refactoring IPC communication patterns.
+* Drafting project documentation and compliance notices.
+
+All AI-generated code has been reviewed for security and accuracy. Developers retain ownership of these outputs per the respective AI service terms, and all such code is released under the project's CC0 license.

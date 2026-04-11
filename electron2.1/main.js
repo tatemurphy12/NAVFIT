@@ -941,27 +941,46 @@ function createApplicationMenu(mainWindow) {
         {
             label: 'File',
             submenu: [
+
+                {
+                    label: 'Save',
+                    accelerator: 'CmdOrCtrl+S',
+                    click: () => {
+                        // Use mainWindow (the variable passed into your function)
+                        if (mainWindow) {
+                            mainWindow.webContents.send('menu-save-trigger');
+                        }
+                    }
+                },
                 {
                     label: 'Return to Database',
                     accelerator: 'CmdOrCtrl+D',
                     click: () => {
-                        // This sends a signal to your React App
-                        mainWindow.webContents.send('menu-navigate-home');
+                        // Ensure mainWindow exists before sending
+                        if (mainWindow) {
+                            mainWindow.webContents.send('menu-navigate-home');
+                        }
                     }
                 },
-                { type: 'separator' },
+                { type: 'separator' }, // Added for better UI
                 {
                     label: 'Quit',
-                    accelerator: 'CmdOrCtrl+Q',
-                    click: () => { app.quit(); }
+                    accelerator: process.platform === 'darwin' ? 'Command+Q' : 'Ctrl+Q',
+                    click: () => {
+                        app.quit();
+                    }
                 }
             ]
         },
         {
             label: 'Edit',
             submenu: [
-                { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
-                { role: 'cut' }, { role: 'copy' }, { role: 'paste' }
+                { role: 'undo' },
+                { role: 'redo' },
+                { type: 'separator' },
+                { role: 'cut' },
+                { role: 'copy' },
+                { role: 'paste' }
             ]
         },
         {

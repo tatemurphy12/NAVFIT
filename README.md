@@ -55,3 +55,14 @@ npm start
 cd frontend2.1
 npm test
 ```
+
+### 8. Licensing
+This project is dedicated to the **Public Domain** under the [CC0 1.0 Universal](LICENSE) license, following USDS Open Source guidelines.
+
+### Third-Party Encumbrances
+Original code in this repository is Public Domain. However, the application bundles several third-party components subject to their own licenses:
+* **Electron/React/pdf-lib**: MIT License.
+* **UCanAccess/Jackcess**: Apache 2.0 License.
+* **Java Runtime (JRE)**: GPLv2 with Classpath Exception.
+
+A comprehensive list of these dependencies and their mandatory legal attributions can be found in [legal/ATTRIBUTIONS.md](legal/ATTRIBUTIONS.md).
