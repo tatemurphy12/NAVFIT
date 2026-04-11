@@ -165,11 +165,21 @@ ipcMain.handle('save-fitrep', async (e, payload) => {
 
     try {
         const db = new Database(targetDb);
-        
+
         // Ensure the Folders table has a Root entry (Required for legacy NAVFIT compatibility)
         const rootExists = db.prepare("SELECT FolderID FROM [Folders] WHERE FolderID = 1").get();
         if (!rootExists) {
             db.prepare(`INSERT INTO [Folders] (FolderName, FolderID, Parent, Active) VALUES (?, ?, ?, ?)`).run('Root', 1, 0, 1);
+        }
+
+        // If SSNs are encrypted, preserve the encrypted values from the database
+        // instead of overwriting with plaintext or masked values from the frontend
+        if (isDbEncrypted(targetDb) && reportId) {
+            const existing = db.prepare('SELECT SSN, RSSSN FROM [Reports] WHERE ReportID = ?').get(reportId);
+            if (existing) {
+                data.SSN = existing.SSN;
+                data.RSSSN = existing.RSSSN;
+            }
         }
 
         if (!reportId) {
