@@ -36,14 +36,14 @@ name: (val) => {
 
   // Block 4: SSN
   ssn: (val) => {
-    // If the field is empty, don't show an error
     if (!val || val.length === 0) return { isError: false, note: "" };
+    // Skip validation for encrypted values
+    if (val.startsWith('ENC:')) return { isError: false, note: "" };
 
-    // Strict regex: exactly 3 digits, dash, 2 digits, dash, 4 digits
     const isStrictFormat = /^\d{3}-\d{2}-\d{4}$/.test(val);
 
-    return { 
-      isError: !isStrictFormat, 
+    return {
+      isError: !isStrictFormat,
       note: isStrictFormat ? "" : "Required format: 000-00-0000"
     };
   },
@@ -188,16 +188,16 @@ toPeriod: (val, formData) => {
     };
   },
 
-  // Block 27: SSN 
+  // Block 27: SSN
   reportSSN: (val) => {
-    // If the field is empty, don't show an error
     if (!val || val.length === 0) return { isError: false, note: "" };
+    // Skip validation for encrypted values
+    if (val.startsWith('ENC:')) return { isError: false, note: "" };
 
-    // Strict regex: exactly 3 digits, dash, 2 digits, dash, 4 digits
     const isStrictFormat = /^\d{3}-\d{2}-\d{4}$/.test(val);
 
-    return { 
-      isError: !isStrictFormat, 
+    return {
+      isError: !isStrictFormat,
       note: isStrictFormat ? "" : "Required format: 000-00-0000"
     };
   },
