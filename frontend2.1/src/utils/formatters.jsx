@@ -36,14 +36,14 @@ name: (val) => {
 
   // Block 4: SSN
   ssn: (val) => {
-    // If the field is empty, don't show an error
     if (!val || val.length === 0) return { isError: false, note: "" };
+    // Skip validation for encrypted values
+    if (val.startsWith('ENC:')) return { isError: false, note: "" };
 
-    // Strict regex: exactly 3 digits, dash, 2 digits, dash, 4 digits
     const isStrictFormat = /^\d{3}-\d{2}-\d{4}$/.test(val);
 
-    return { 
-      isError: !isStrictFormat, 
+    return {
+      isError: !isStrictFormat,
       note: isStrictFormat ? "" : "Required format: 000-00-0000"
     };
   },
@@ -188,16 +188,16 @@ toPeriod: (val, formData) => {
     };
   },
 
-  // Block 27: SSN 
+  // Block 27: SSN
   reportSSN: (val) => {
-    // If the field is empty, don't show an error
     if (!val || val.length === 0) return { isError: false, note: "" };
+    // Skip validation for encrypted values
+    if (val.startsWith('ENC:')) return { isError: false, note: "" };
 
-    // Strict regex: exactly 3 digits, dash, 2 digits, dash, 4 digits
     const isStrictFormat = /^\d{3}-\d{2}-\d{4}$/.test(val);
 
-    return { 
-      isError: !isStrictFormat, 
+    return {
+      isError: !isStrictFormat,
       note: isStrictFormat ? "" : "Required format: 000-00-0000"
     };
   },
@@ -294,14 +294,32 @@ comments: (val, formData) => {
     return { isError: false, note: "" };
   }
 
-  // 1. Line Count Check (Navy max is 18 lines)
-  const lineCount = val.split('\n').length;
-  if (lineCount > 18) {
-    return { 
-      isError: true, 
-      note: `Exceeds 18-line limit (Current: ${lineCount})` 
-    };
+  // 1. Set your fixed character limit per line (Navy standard is ~90)
+const MAX_CHARS_PER_LINE = 90; 
+const MAX_LINES = 18;
+
+// 2. Split by manual enters first
+const manualLines = val.split('\n');
+
+let totalLines = 0;
+
+manualLines.forEach(line => {
+  // If a line is empty, it still counts as 1 line
+  if (line.length === 0) {
+    totalLines += 1;
+  } else {
+    // Calculate how many lines this specific string takes up
+    // Math.ceil(100 / 90) = 2 lines
+    totalLines += Math.ceil(line.length / MAX_CHARS_PER_LINE);
   }
+});
+
+if (totalLines > MAX_LINES) {
+  return { 
+    isError: true, 
+    note: `Exceeds 18-line limit (Estimated: ${totalLines}/${MAX_LINES})` 
+  };
+}
 
   // 2. Physical Readiness Check
   // If Block 20 contains 'B' (BCA failure), ensure it's mentioned in comments

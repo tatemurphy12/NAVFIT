@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../../styles/FitrepForm.css'; 
 import validators from '../../utils/formatters';
@@ -13,21 +13,22 @@ export default function FitrepForm() {
 
   const location = useLocation();
   const navigate = useNavigate();
+  const saveRef = useRef();
     
-  // Extract the routing data passed by HomePage
+  // Extract routing data
   const { 
       dbPath = null, 
       reportId = null, 
       fitrep = null 
   } = location.state || {};
 
-  // Track the report ID so we know if we are updating or inserting
+  // Component State
   const [currentReportId, setCurrentReportId] = useState(reportId);
   const [isDateRepFocused, setIsDateRepFocused] = useState(false);
   const [isFromFocused, setIsFromFocused] = useState(false);
   const [isToFocused, setIsToFocused] = useState(false);
 
-  // Pass the dynamic dbPath to your hook instead of the hardcoded one!
+  // Hook Data
   const {
     formData, 
     setFormData,
@@ -42,17 +43,74 @@ export default function FitrepForm() {
     hasUnsavedChanges, 
     handleACCDBExport,
     getError,
-    raterGroupSummary
+    raterGroupSummary,
+    ssnEncrypted,
+    showDecryptModal,
+    setShowDecryptModal,
+    handleDecryptForExport
   } = useFitrep(dbPath);
 
-  // Pre-fill data if editing an existing report
+  const [decryptPassword, setDecryptPassword] = useState('');
+  const [decryptError, setDecryptError] = useState('');
+  const [decryptModalKey, setDecryptModalKey] = useState(0);
+
+  // Refs and Modals
+  const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '' });
+  const confirmResolveRef = useRef(null);
+
+  const showConfirm = (title, message) => {
+    return new Promise((resolve) => {
+      confirmResolveRef.current = resolve;
+      setConfirmModal({ show: true, title, message });
+    });
+  };
+
+  const handleConfirmYes = () => {
+    confirmResolveRef.current?.(true);
+    setConfirmModal({ show: false, title: '', message: '' });
+  };
+
+  const handleConfirmNo = () => {
+    confirmResolveRef.current?.(false);
+    setConfirmModal({ show: false, title: '', message: '' });
+  };
+
+  // --- EFFECT 1: Modal Management ---
+  useEffect(() => {
+    if (showDecryptModal) {
+      setDecryptModalKey(prev => prev + 1);
+      setDecryptPassword('');
+      setDecryptError('');
+    }
+  }, [showDecryptModal]);
+
+  useEffect(() => {
+      saveRef.current = handleSaveFitrep;
+  }, [handleSaveFitrep]);
+
+  // --- EFFECT 2: Electron Menu Listener (NOW TOP LEVEL) ---
+  useEffect(() => {
+    if (window.api && window.api.onMenuNavigateHome) {
+      const removeListener = window.api.onMenuNavigateHome(() => {
+        console.log("Menu signal received: Returning to Database...");
+        navigate('/'); 
+      });
+
+      return () => {
+        if (typeof removeListener === 'function') {
+          removeListener();
+        }
+      };
+    }
+  }, [navigate]);
+
+  // --- EFFECT 3: Data Pre-fill/Population ---
   useEffect(() => {
     const intToPromoRec = (val) => {
         const map = { 0: 'NOB', 1: 'SIGNIFICANT PROBLEMS', 2: 'PROGRESSING', 3: 'PROMOTABLE', 4: 'MUST PROMOTE', 5: 'EARLY PROMOTE' };
         return map[val] || '';
     };
 
-    // Convert a DB trait integer (1-5 or 0) to the radio value format ("1.0"-"5.0", "NOB", or "")
     const traitToRadio = (val) => {
         if (!val || val === 0 || val === '0') return '';
         const str = String(val);
@@ -108,7 +166,6 @@ export default function FitrepForm() {
     };
 
     if (reportId && dbPath && setFormData) {
-        // Fetch the full report from the database
         window.api.loadFitrep({ dbPath, reportId }).then((fullReport) => {
             if (fullReport) {
                 populateForm(fullReport);
@@ -116,6 +173,26 @@ export default function FitrepForm() {
         });
     }
   }, [reportId, dbPath, setFormData]);
+
+    // 3. Listen for the 'Save' signal from the File Menu
+    useEffect(() => {
+      if (window.api && window.api.onMenuSaveTrigger) {
+          // We add the console log to help you debug in the browser tools (F12)
+          const removeListener = window.api.onMenuSaveTrigger(async () => {
+              console.log("Save signal received from Menu");
+              if (saveRef.current) {
+                  // Pass the current state values
+                  await saveRef.current(currentReportId, setCurrentReportId);
+              }
+          });
+
+          return () => {
+              if (typeof removeListener === 'function') removeListener();
+          };
+      }
+      // Added setCurrentReportId for stability
+  }, [currentReportId, setCurrentReportId]);
+
   // Helper to convert Browser Date (YYYY-MM-DD) to Navy Format (YYMMM DD)
   const formatDateToNavy = (dateString) => {
     if (!dateString) return "";
@@ -153,18 +230,58 @@ export default function FitrepForm() {
     // Returns "2026-03-15" format required by <input type="date">
     return `${yearPart}-${String(monthIndex + 1).padStart(2, '0')}-${dayPart}`;
   };
+
+  // --- THE ACCURATE LINE COUNTER ---
+const calculateTrueLines = () => {
+  const textarea = document.querySelector('.block-41-textarea');
+  // If no textarea or no text, it's just 1 line
+  if (!textarea || !formData.comments) return 1;
+
+  const style = window.getComputedStyle(textarea);
+  const lineHeight = parseInt(style.lineHeight) || 20;
+
+  // 1. Create a hidden "Ghost" div to mimic the textarea
+  const ghost = document.createElement('div');
   
+  // 2. Copy the EXACT styles that affect text wrapping
+  ghost.style.width = style.width;
+  ghost.style.fontFamily = style.fontFamily;
+  ghost.style.fontSize = style.fontSize;
+  ghost.style.lineHeight = style.lineHeight;
+  ghost.style.padding = style.padding;
+  ghost.style.boxSizing = 'border-box';
+  ghost.style.whiteSpace = 'pre-wrap';
+  ghost.style.wordWrap = 'break-word';
+  
+  // 3. Hide it from the user
+  ghost.style.visibility = 'hidden';
+  ghost.style.position = 'absolute';
+  ghost.style.top = '-9999px';
+
+  // 4. Set the text and measure
+  ghost.textContent = formData.comments || ""; // Use the state directly
+  document.body.appendChild(ghost);
+  const textHeight = ghost.getBoundingClientRect().height;
+  document.body.removeChild(ghost);
+
+  // 5. Math: Total Height divided by height of one line
+  return Math.max(1, Math.round(textHeight / lineHeight));
+};
+
+const totalLines = calculateTrueLines();
+
   return (
+    <>
     <div className="navfit-paper">
-      
+
       {/* ADDED: Back to Database Button */}
       <div style={{ padding: '10px 0', display: 'flex', justifyContent: 'flex-start' }}>
         <button 
           className="btn btn-secondary" 
-          onClick={() => {
+          onClick={async () => {
             if (hasUnsavedChanges) {
-              const confirm = window.confirm("You have unsaved changes! Are you sure you want to leave without saving?");
-              if (!confirm) return;
+              const confirmed = await showConfirm("Unsaved Changes", "You have unsaved changes! Are you sure you want to leave without saving?");
+              if (!confirmed) return;
             }
             navigate('/', { state: { openDb: { name: dbPath.split(/[/\\]/).pop(), path: dbPath } } });
           }}
@@ -257,14 +374,17 @@ export default function FitrepForm() {
       </div>
       
       {/* BLOCK 4: SSN */}
-      <div 
-        className={`navfit-cell ${getError('ssn').isError ? "input-error" : ""}`} 
-        style={{ flex: 1.5 }}
+      <div
+        className={`navfit-cell ${getError('ssn').isError ? "input-error" : ""}`}
+        style={{ flex: 1.5, ...(ssnEncrypted ? { backgroundColor: '#e8e8e8', opacity: 0.8 } : {}) }}
       >
-        <label>4. SSN</label>
-        <input 
+        <label>4. SSN {ssnEncrypted && '(Encrypted)'}</label>
+        <input
           className="navfit-input"
-          value={formData.ssn} 
+          value={ssnEncrypted ? '\u2022\u2022\u2022-\u2022\u2022-\u2022\u2022\u2022\u2022' : formData.ssn}
+          readOnly={ssnEncrypted}
+          disabled={ssnEncrypted}
+          style={ssnEncrypted ? { backgroundColor: '#d0d0d0', color: '#666', cursor: 'not-allowed' } : {}}
           onChange={(e) => {
             // Allow only digits and hyphens
             let val = e.target.value.replace(/[^0-9-]/g, '');
@@ -813,21 +933,24 @@ export default function FitrepForm() {
       </div>
 
       {/* BLOCK 27: SENIOR SSN */}
-      <div 
-        className={`navfit-cell ${getError('reportSSN').isError ? "input-error" : ""}`} 
-        style={{ flex: 1, borderRight: '1px solid black', minWidth: 0 }}
+      <div
+        className={`navfit-cell ${getError('reportSSN').isError ? "input-error" : ""}`}
+        style={{ flex: 1, borderRight: '1px solid black', minWidth: 0, ...(ssnEncrypted ? { backgroundColor: '#e8e8e8', opacity: 0.8 } : {}) }}
       >
-        <label>27. SSN</label>
-        <input 
+        <label>27. SSN {ssnEncrypted && '(Encrypted)'}</label>
+        <input
           className="navfit-input"
-          value={formData.reportSSN || ""} /* Added || "" to prevent controlled/uncontrolled warnings */
+          value={ssnEncrypted ? '\u2022\u2022\u2022-\u2022\u2022-\u2022\u2022\u2022\u2022' : (formData.reportSSN || "")}
+          readOnly={ssnEncrypted}
+          disabled={ssnEncrypted}
+          style={ssnEncrypted ? { backgroundColor: '#d0d0d0', color: '#666', cursor: 'not-allowed' } : {}}
           onChange={(e) => {
             // 1. Filter the input
             let val = e.target.value.replace(/[^0-9-]/g, '');
-            
+
             // 2. Cap the length
             if (val.length > 11) val = val.slice(0, 11);
-            
+
             // 3. FIX: Use 'val', not 'masked'
             handleChange('reportSSN', val);
           }}
@@ -858,7 +981,7 @@ export default function FitrepForm() {
       
       <textarea 
         value={formData.cmdEmployAch} 
-        onChange={(e) => handleChange('cmdEmployAch', e.target.value.toUpperCase())} 
+        onChange={(e) => handleChange('cmdEmployAch', e.target.value)} 
         className="navfit-textarea" 
         style={{ 
           width: '100%', 
@@ -891,82 +1014,86 @@ export default function FitrepForm() {
     </div>
 
     {/* BLOCK 29: PRIMARY/COLLATERAL DUTIES */}
-    <div className={`navfit-row ${getError('primaryDuty').isError ? "input-error" : ""}`} 
-        style={{ 
-            display: 'flex', 
-            flexDirection: 'column',
-            width: '100%', 
-            borderLeft: '1px solid black',
-            borderRight: '1px solid black', 
-            padding: '5px',
-            position: 'relative',
-            minHeight: '120px' // Ensures the box doesn't collapse
-          }}>
-      <label style={{marginBottom: '5px' }}>
-        29. Primary/Collateral/Watchstanding Duties (Enter Primary Duty Abbreviation in Box)
-      </label>
-
-      {/* Mini Abbreviation Box (Stays Absolute) */}
-      <div style={{
-        position: 'absolute',
-        left: '10px',
-        top: '25px', // Adjusted slightly down from the label
-        border: `1px solid ${getError('primaryDuty').isError ? 'red' : 'black'}`,
-        width: '200px',
-        height: '25px',
-        display: 'flex',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        zIndex: 10
+<div className={`navfit-row ${getError('primaryDuty').isError ? "input-error" : ""}`} 
+    style={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        width: '100%', 
+        borderLeft: '1px solid black',
+        borderRight: '1px solid black', 
+        padding: '5px',
+        position: 'relative', // Keep this so the box can sit inside
+        minHeight: '120px'
       }}>
-        <input 
-          type="text"
-          maxLength="14"
-          value={formData.primaryDuty} 
-          onChange={(e) => handleChange('primaryDuty', e.target.value.toUpperCase())} 
-          style={{ 
-            width: '100%', 
-            border: 'none', 
-            textAlign: 'center', 
-            outline: 'none'
-          }}
-        />
-      </div>
+  <label style={{ marginBottom: '5px' }}>
+    29. Primary/Collateral/Watchstanding Duties (Enter Primary Duty Abbreviation in Box)
+  </label>
 
-      {/* TEXTAREA WRAPPER: This is the secret sauce */}
-      <div style={{ paddingTop: '35px', width: '100%' }}>
-        <textarea 
-          value={formData.duties} 
-          onChange={(e) => handleChange('duties', e.target.value)} 
-          className="navfit-textarea" 
-          style={{ 
-            width: '100%', 
-            border: 'none',
-            outline: 'none',
-            resize: 'none',
-            backgroundColor: 'transparent',
-            lineHeight: '1.2',
-            minHeight: '80px'
-          }}
-          rows="5"
-        />
-      </div>
+  {/* Mini Abbreviation Box (Stays exactly where you put it) */}
+  <div style={{
+    position: 'absolute',
+    left: '10px',
+    top: '28px', // Adjusted to align perfectly with the first line of text
+    border: `1px solid ${getError('primaryDuty').isError ? 'red' : 'black'}`,
+    width: '200px',
+    height: '22px',
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    zIndex: 10
+  }}>
+    <input 
+      type="text"
+      maxLength="14"
+      value={formData.primaryDuty} 
+      onChange={(e) => handleChange('primaryDuty', e.target.value.toUpperCase())} 
+      style={{ 
+        width: '100%', 
+        border: 'none', 
+        textAlign: 'center', 
+        outline: 'none',
+        fontSize: '11px'
+      }}
+    />
+  </div>
 
-      {/* FOOTER */}
-      <div style={{ 
-        display: 'flex',
-        justifyContent: 'space-between',
-        borderTop: '1px dashed #ccc',
-        marginTop: '5px'
-      }}>
-        <span>
-          {getError('primaryDuty').isError ? getError('primaryDuty').note : ""}
-        </span>
-        <span style={{ color: '#666' }}>
-          {formData.duties.length} / {FITREP_CONFIG.MAX_ACHIEVEMENT_LENGTH}
-        </span>
-      </div>
-    </div>
+  {/* TEXTAREA: Starts at the top, but the first line is pushed to the right */}
+  <div style={{ width: '100%' }}>
+    <textarea 
+      value={formData.duties} 
+      onChange={(e) => handleChange('duties', e.target.value)} 
+      className="navfit-textarea" 
+      style={{ 
+        width: '100%', 
+        border: 'none',
+        outline: 'none',
+        resize: 'none',
+        backgroundColor: 'transparent',
+        lineHeight: '22px', // Match this to the box height for perfect alignment
+        minHeight: '100px',
+        /* THE SECRET SAUCE: Indent the first line by the width of the box + padding */
+        textIndent: '210px', 
+        paddingTop: '2px'
+      }}
+      rows="5"
+    />
+  </div>
+
+  {/* FOOTER */}
+  <div style={{ 
+    display: 'flex',
+    justifyContent: 'space-between',
+    borderTop: '1px dashed #ccc',
+    marginTop: '5px'
+  }}>
+    <span>
+      {getError('primaryDuty').isError ? getError('primaryDuty').note : ""}
+    </span>
+    <span style={{ color: '#666' }}>
+      {(formData.duties || "").length} / {FITREP_CONFIG.MAX_ACHIEVEMENT_LENGTH}
+    </span>
+  </div>
+</div>
 
       {/* ROW: BLOCKS 30-32 (COUNSELING) */}
       <div className="navfit-row" style={{ display: 'flex', width: '100%' }}>
@@ -1194,20 +1321,55 @@ export default function FitrepForm() {
     </div>
 
       {/* BLOCK 40: MILESTONES */}
-      <div className="navfit-row" style={{ display: 'flex', borderLeft: '1px solid black', borderRight: '1px solid black'}}>
-        <div className="navfit-cell">
-          <label>40. I recommend screening this individual for next career milestone(s) as follows: (maximum of two)</label>
-          <label>Recommendations may be for competitive schools or duty assignments such as:</label>
-          <label>SCP, Dept Head, XO, OIC, CO, Major Command, War College, PG School</label>
-        </div>
-        <div className={`navfit-cell ${getError('milestoneOne').isError ? "input-error" : ""}`} style={{ flex: .5}}>
-          <input className="navfit-input" value={formData.milestoneOne} onChange={(e) => handleChange('milestoneOne', e.target.value.toUpperCase())}/>
-        </div>
-        <div className={`navfit-cell ${getError('milestoneTwo').isError ? "input-error" : ""}`} style={{ flex: 0.5, borderRight: 'none' }}>
-          <input className="navfit-input" value={formData.milestoneTwo} onChange={(e) => handleChange('milestoneTwo', e.target.value.toUpperCase())}/>
-        </div>
-      </div>
+<div className="navfit-row" style={{ 
+  display: 'flex', 
+  borderLeft: '1px solid black', 
+  borderRight: '1px solid black',
+  borderBottom: '1px solid black' /* Added bottom border to close the box */
+}}>
+  {/* LEFT: Labels */}
+  <div className="navfit-cell" style={{ flex: 3, display: 'flex', flexDirection: 'column' }}>
+    <label>40. I recommend screening this individual for next career milestone(s) as follows: (maximum of two)</label>
+    <label>Recommendations may be for competitive schools or duty assignments such as:</label>
+    <label>SCP, Dept Head, XO, OIC, CO, Major Command, War College, PG School</label>
+  </div>
 
+  {/* MIDDLE: Milestone One Box */}
+  <div 
+    className={`navfit-cell ${getError('milestoneOne').isError ? "input-error" : ""}`} 
+    style={{ 
+      flex: 0.5, 
+      borderLeft: '1px solid black', /* CRITICAL: This creates the first box in the PDF */
+      display: 'flex',
+      alignItems: 'center'
+    }}
+  >
+    <input 
+      className="navfit-input" 
+      value={formData.milestoneOne} 
+      onChange={(e) => handleChange('milestoneOne', e.target.value.toUpperCase())}
+      style={{ textAlign: 'center' }} 
+    />
+  </div>
+
+  {/* RIGHT: Milestone Two Box */}
+  <div 
+    className={`navfit-cell ${getError('milestoneTwo').isError ? "input-error" : ""}`} 
+    style={{ 
+      flex: 0.5, 
+      borderLeft: '1px solid black', /* CRITICAL: This separates the two boxes in the PDF */
+      display: 'flex',
+      alignItems: 'center'
+    }}
+  >
+    <input 
+      className="navfit-input" 
+      value={formData.milestoneTwo} 
+      onChange={(e) => handleChange('milestoneTwo', e.target.value.toUpperCase())}
+      style={{ textAlign: 'center' }}
+    />
+  </div>
+</div>
    {/* BLOCK 41: COMMENTS */}
 <div 
   className={`navfit-row ${getError('comments').isError ? "input-error" : ""}`} 
@@ -1240,18 +1402,21 @@ export default function FitrepForm() {
   </div>
 
   <textarea 
-    value={formData.comments} 
-    onChange={(e) => handleChange('comments', e.target.value.toUpperCase())} 
-    className="navfit-textarea block-41-textarea"
-      style={{ 
-      width: '100%', 
-      flex: 1, /* Allows it to fill the available space */
-      minHeight: '180px', 
-      fontSize: formData.commentFontSize || "10px", 
-      lineHeight: '1.2',
-      resize: 'none' /* Prevents user from breaking the form layout */
-    }} 
-  />
+  value={formData.comments} 
+  onChange={(e) => handleChange('comments', e.target.value)} 
+  className="navfit-textarea block-41-textarea"
+  style={{ 
+    width: '100%', 
+    flex: 1,
+    minHeight: '180px', 
+    fontSize: formData.commentFontSize || "10px", 
+    /* CHANGED: Use 'px' or 'rem' so the line counter math is exact */
+    lineHeight: '1.25rem', 
+    resize: 'none',
+    boxSizing: 'border-box', 
+    overflow: 'hidden'
+  }} 
+/>
 
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
     {/* Error Note Area */}
@@ -1261,11 +1426,11 @@ export default function FitrepForm() {
 
     {/* Metadata Stats */}
     <div style={{ textAlign: 'right', opacity: 0.7 }}>
-      <span style={{ marginRight: '10px' }}>
-        LINES: {formData.comments.split('\n').length} / 18
-      </span>
-      <span>CHARS: {formData.comments.length}</span>
-    </div>
+    <span style={{ marginRight: '10px', color: totalLines > 18 ? 'red' : 'inherit' }}>
+      LINES: {totalLines} / 18
+    </span>
+    <span>CHARS: {formData.comments.length}</span>
+  </div>
   </div>
 </div>
 
@@ -1514,19 +1679,130 @@ export default function FitrepForm() {
       <div className="navfit-actions" style={{ padding: '10px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
         <button className="save-btn" onClick={() => handleSaveFitrep(currentReportId, setCurrentReportId, dbPath)}>Save Changes</button>
         <button className="pdf-btn" onClick={handlePDFExport} disabled={!isSaved || hasUnsavedChanges}>Export PDF</button>
+        <button className="accdb-btn" onClick={handleACCDBExport} disabled={!isSaved || hasUnsavedChanges}>Export ACCDB</button>
       </div>
 
-      {/* MODAL OVERLAY */}
-      {showModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div className="modal-content" style={{ background: 'white', padding: '20px', borderRadius: '8px' }}>
-            <h3 style={{ color: modalContent.isError ? 'red' : 'green' }}>{modalContent.title}</h3>
-            <p>{modalContent.text}</p>
-            <button onClick={() => setShowModal(false)}>Close</button>
+    </div>{/* This closes navfit-paper */}
+
+    {/* MODAL OVERLAY - rendered outside navfit-paper to avoid CSS conflicts */}
+    {showModal && (
+      <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+        <div className="modal-content" style={{ background: 'white', padding: '20px', borderRadius: '8px' }}>
+          <h3 style={{ color: modalContent.isError ? 'red' : 'green' }}>{modalContent.title}</h3>
+          <p>{modalContent.text}</p>
+          <button onClick={() => setShowModal(false)}>Close</button>
+        </div>
+      </div>
+    )}
+
+    {/* CONFIRM MODAL - replaces window.confirm for non-blocking UX */}
+    {confirmModal.show && (
+      <div
+        style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1002
+        }}
+        onMouseDown={(e) => { if (e.target === e.currentTarget) handleConfirmNo(); }}
+      >
+        <div
+          style={{
+            background: '#1e1e2e', borderRadius: '12px', padding: '30px',
+            minWidth: '340px', maxWidth: '420px', color: '#fff',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <h3 style={{ margin: '0 0 12px 0' }}>{confirmModal.title}</h3>
+          <p style={{ color: '#ccc', fontSize: '14px', margin: '0 0 20px 0', whiteSpace: 'pre-line' }}>
+            {confirmModal.message}
+          </p>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button
+              style={{ background: '#555', border: 'none', padding: '8px 16px', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
+              onClick={handleConfirmNo}
+            >
+              Cancel
+            </button>
+            <button
+              style={{ background: '#d9534f', border: 'none', padding: '8px 16px', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
+              onClick={handleConfirmYes}
+            >
+              Confirm
+            </button>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
-    </div> // This closes navfit-paper
+    {/* DECRYPT FOR EXPORT MODAL - rendered outside navfit-paper to avoid CSS conflicts */}
+    {showDecryptModal && (
+      <div
+        key={decryptModalKey}
+        style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 1001
+        }}
+        onMouseDown={(e) => { if (e.target === e.currentTarget) { setShowDecryptModal(false); setDecryptPassword(''); setDecryptError(''); } }}
+      >
+        <div
+          style={{
+            background: '#1e1e2e', borderRadius: '12px', padding: '30px',
+            minWidth: '360px', maxWidth: '420px', color: '#fff',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <h3 style={{ margin: '0 0 8px 0' }}>SSNs Are Encrypted</h3>
+          <p style={{ color: '#aaa', fontSize: '14px', margin: '0 0 20px 0' }}>
+            SSNs must be decrypted before exporting. Enter your password to decrypt and continue.
+          </p>
+          <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Password</label>
+          <input
+            type="password"
+            autoFocus
+            value={decryptPassword}
+            onChange={(e) => setDecryptPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleDecryptForExport(decryptPassword, currentReportId).then(r => {
+                  if (!r.success) setDecryptError(r.error);
+                  else { setDecryptPassword(''); setDecryptError(''); }
+                });
+              }
+            }}
+            style={{
+              width: '100%', padding: '10px', borderRadius: '6px',
+              border: '1px solid #444', background: '#2a2a3e', color: '#fff',
+              fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box',
+              outline: 'none'
+            }}
+          />
+          {decryptError && (
+            <p style={{ color: '#ff6b6b', fontSize: '13px', margin: '0 0 12px 0' }}>{decryptError}</p>
+          )}
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button
+              style={{ background: '#555', border: 'none', padding: '8px 16px', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
+              onClick={() => { setShowDecryptModal(false); setDecryptPassword(''); setDecryptError(''); }}
+            >
+              Cancel
+            </button>
+            <button
+              style={{ background: '#4a90d9', border: 'none', padding: '8px 16px', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
+              onClick={async () => {
+                const r = await handleDecryptForExport(decryptPassword, currentReportId);
+                if (!r.success) setDecryptError(r.error);
+                else { setDecryptPassword(''); setDecryptError(''); }
+              }}
+            >
+              Decrypt & Export
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

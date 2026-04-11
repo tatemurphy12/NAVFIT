@@ -6,6 +6,8 @@
   --error-bg: #fff0f0;
 }
 
+a:visited { color: black !important; }
+
 /* 2. THE MASTER FONT RULE (Sizing only, no color here) */
 .navfit-paper label,
 .navfit-paper span,
@@ -32,7 +34,6 @@
   font-family: var(--navy-font) !important;
   font-size: var(--fitrep-master-size); 
   font-weight: normal;
-  text-transform: uppercase;
   border: none !important;
   outline: none !important;
   box-shadow: none !important;

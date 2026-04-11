@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './HomePage.css';
+import logo from './logo.png';
 
 export default function HomePage() {
   const [databases, setDatabases] = useState([]);
@@ -8,8 +9,41 @@ export default function HomePage() {
   const [fitreps, setFitreps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fitrepsLoading, setFitrepsLoading] = useState(false);
+  const [ssnState, setSsnState] = useState('decrypted');
+  const [hasPassword, setHasPassword] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordModalKey, setPasswordModalKey] = useState(0);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [ssnMessage, setSsnMessage] = useState(null);
+
+  // General notification toast (replaces window.alert)
+  const [notification, setNotification] = useState(null); // { message, type: 'success'|'error'|'info' }
+
+  // Custom confirm modal (replaces window.confirm)
+  const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '' });
+  const confirmResolveRef = useRef(null);
+
   const navigate = useNavigate();
   const location = useLocation();
+
+  const showConfirm = (title, message) => {
+    return new Promise((resolve) => {
+      confirmResolveRef.current = resolve;
+      setConfirmModal({ show: true, title, message });
+    });
+  };
+
+  const handleConfirmYes = () => {
+    confirmResolveRef.current?.(true);
+    setConfirmModal({ show: false, title: '', message: '' });
+  };
+
+  const handleConfirmNo = () => {
+    confirmResolveRef.current?.(false);
+    setConfirmModal({ show: false, title: '', message: '' });
+  };
 
   useEffect(() => { loadDatabases(); }, []);
 
@@ -38,7 +72,7 @@ export default function HomePage() {
     if (result.success) {
       await loadDatabases();
     } else if (result.message) {
-      alert("Error creating database: " + result.message);
+      setNotification({ message: "Error creating database: " + result.message, type: 'error' });
     }
   };
 
@@ -47,7 +81,7 @@ export default function HomePage() {
     if (result.success) {
         await loadDatabases();
     } else if (result.error) {
-        alert("Error opening database: " + result.error);
+        setNotification({ message: "Error opening database: " + result.error, type: 'error' });
     }
   };
 
@@ -59,13 +93,17 @@ export default function HomePage() {
       
       // If main.js returns an object with an error instead of an array, catch it
       if (rows.error) {
-          alert(`Cannot find database at: ${db.path}\nIt may have been moved or deleted.`);
+          setNotification({ message: `Cannot find database at: ${db.path}. It may have been moved or deleted.`, type: 'error' });
           setFitrepsLoading(false);
           return;
       }
       
       setOpenedDb(db);
       setFitreps(rows || []);
+      // Load SSN encryption state for this database
+      const stateResult = await window.api.getDbSsnState(db.path);
+      setSsnState(stateResult.ssnState || 'decrypted');
+      setHasPassword(!!stateResult.hasPassword);
     } catch (err) {
       console.error('Failed to load fitreps:', err);
       setFitreps([]);
@@ -77,14 +115,23 @@ export default function HomePage() {
   const handleBack = () => {
     setOpenedDb(null);
     setFitreps([]);
+    setSsnState('decrypted');
+    setHasPassword(false);
   };
 
   const handleRemoveDatabase = async (e, dbPath) => {
     e.stopPropagation(); // Crucial: Prevents the card click from opening the folder!
-    const confirmed = window.confirm("Remove this database from the recent list?\n\n(The actual file will NOT be deleted from your computer).");
+    const confirmed = await showConfirm(
+      "Remove Database",
+      "Remove this database from the recent list?\n\n(The actual file will NOT be deleted from your computer)."
+    );
     if (confirmed) {
-      await window.api.removeDatabase(dbPath);
-      await loadDatabases(); // Refresh the grid
+      const result = await window.api.removeDatabase(dbPath);
+      if (result.success) {
+        await loadDatabases(); // Refresh the grid
+      } else if (result.message) {
+        setNotification({ message: result.message, type: 'error' });
+      }
     }
   };
 
@@ -112,7 +159,7 @@ export default function HomePage() {
   };
 
   const handleDeleteFitrep = async (reportId) => {
-    const confirmed = window.confirm('Are you sure you want to delete this report?');
+    const confirmed = await showConfirm("Delete Report", "Are you sure you want to delete this report?");
     if (!confirmed) return;
     try {
       await window.api.deleteFitrep({ dbPath: openedDb.path, reportId });
@@ -123,16 +170,81 @@ export default function HomePage() {
     }
   };
 
+  // Auto-dismiss SSN message after 3 seconds
+  useEffect(() => {
+    if (!ssnMessage) return;
+    const timer = setTimeout(() => setSsnMessage(null), 3000);
+    return () => clearTimeout(timer);
+  }, [ssnMessage]);
+
+  // Auto-dismiss general notification (errors stay longer)
+  useEffect(() => {
+    if (!notification) return;
+    const delay = notification.type === 'error' ? 6000 : 3000;
+    const timer = setTimeout(() => setNotification(null), delay);
+    return () => clearTimeout(timer);
+  }, [notification]);
+
+  const handleToggleSSNEncryption = () => {
+    setPasswordInput('');
+    setConfirmPasswordInput('');
+    setPasswordError('');
+    setPasswordModalKey(prev => prev + 1);
+    setShowPasswordModal(true);
+  };
+
+  const needsConfirm = ssnState === 'decrypted' && !hasPassword;
+
+  const handlePasswordSubmit = async () => {
+    if (!passwordInput) {
+      setPasswordError('Password is required.');
+      return;
+    }
+    if (needsConfirm) {
+      // First time: require confirmation
+      if (passwordInput !== confirmPasswordInput) {
+        setPasswordError('Passwords do not match.');
+        return;
+      }
+    }
+    if (ssnState === 'decrypted') {
+      // Encrypting
+      const result = await window.api.encryptSSNs({ dbPath: openedDb.path, password: passwordInput });
+      if (result.success) {
+        setSsnState('encrypted');
+        setHasPassword(true);
+        setShowPasswordModal(false);
+        setSsnMessage(`SSNs encrypted. ${result.recordsUpdated} report(s) updated.`);
+        const rows = await window.api.loadFitreps(openedDb.path);
+        if (!rows.error) setFitreps(rows || []);
+      } else {
+        setPasswordError('Encryption failed: ' + result.error);
+      }
+    } else {
+      // Decrypting
+      const result = await window.api.decryptSSNs({ dbPath: openedDb.path, password: passwordInput });
+      if (result.success) {
+        setSsnState('decrypted');
+        setShowPasswordModal(false);
+        setSsnMessage(`SSNs decrypted. ${result.recordsUpdated} report(s) updated.`);
+        const rows = await window.api.loadFitreps(openedDb.path);
+        if (!rows.error) setFitreps(rows || []);
+      } else {
+        setPasswordError(result.error || 'Decryption failed.');
+      }
+    }
+  };
+
   const handleExportACCDB = async () => {
     try {
       const result = await window.api.exportACCDB(openedDb.path);
       if (result.success) {
-        alert(`ACCDB exported successfully!\n\n${result.path}`);
+        setNotification({ message: `ACCDB exported successfully! ${result.path}`, type: 'success' });
       } else if (result.error && result.error !== "ACCDB Export cancelled.") {
-        alert(`Export failed:\n${result.error}`);
+        setNotification({ message: `Export failed: ${result.error}`, type: 'error' });
       }
     } catch (err) {
-      alert(`Export failed:\n${err.message || err}`);
+      setNotification({ message: `Export failed: ${err.message || err}`, type: 'error' });
     }
   };
 
@@ -140,6 +252,7 @@ export default function HomePage() {
   if (openedDb) {
     return (
       <div className="homepage">
+        <img src={logo} alt="logo" className="logo" />
         <header className="homepage-header">
           <h1 className="homepage-title">NAVFIT<span className="title-accent">26</span></h1>
         </header>
@@ -158,6 +271,9 @@ export default function HomePage() {
             </button>
             <button className="btn btn-secondary" onClick={handleExportACCDB}>
               ↓ Export ACCDB
+            </button>
+            <button className="btn btn-secondary" onClick={handleToggleSSNEncryption}>
+              {ssnState === 'decrypted' ? 'Encrypt SSNs' : 'Decrypt SSNs'}
             </button>
           </div>
 
@@ -190,10 +306,10 @@ export default function HomePage() {
                       <td>{report.Rate || '—'}</td>
                       <td className="action-cell">
                         <button className="btn btn-secondary" onClick={() => handleEditReport(report)}>
-                          ✏️ Edit / View
+                          Edit / View
                         </button>
                         <button className="btn btn-danger" onClick={() => handleDeleteFitrep(report.ReportID)}>
-                          🗑 Delete
+                          Delete
                         </button>
                       </td>
                     </tr>
@@ -203,6 +319,141 @@ export default function HomePage() {
             )}
           </div>
         </div>
+
+        {ssnMessage && (
+          <div style={{
+            position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+            background: '#1a6edd', color: '#fff', padding: '12px 24px',
+            borderRadius: '8px', zIndex: 999, fontSize: '14px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)', cursor: 'pointer'
+          }} onClick={() => setSsnMessage(null)}>
+            {ssnMessage}
+          </div>
+        )}
+
+        {notification && (
+          <div style={{
+            position: 'fixed', top: '60px', left: '50%', transform: 'translateX(-50%)',
+            background: notification.type === 'error' ? '#d9534f' : notification.type === 'success' ? '#28a745' : '#1a6edd',
+            color: '#fff', padding: '12px 24px',
+            borderRadius: '8px', zIndex: 999, fontSize: '14px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)', cursor: 'pointer',
+            maxWidth: '500px', textAlign: 'center'
+          }} onClick={() => setNotification(null)}>
+            {notification.message}
+          </div>
+        )}
+
+        {confirmModal.show && (
+          <div
+            style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.5)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', zIndex: 1002
+            }}
+            onMouseDown={(e) => { if (e.target === e.currentTarget) handleConfirmNo(); }}
+          >
+            <div
+              style={{
+                background: '#1e1e2e', borderRadius: '12px', padding: '30px',
+                minWidth: '340px', maxWidth: '420px', color: '#fff',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ margin: '0 0 12px 0' }}>{confirmModal.title}</h3>
+              <p style={{ color: '#ccc', fontSize: '14px', margin: '0 0 20px 0', whiteSpace: 'pre-line' }}>
+                {confirmModal.message}
+              </p>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button className="btn btn-ghost" onClick={handleConfirmNo}>Cancel</button>
+                <button className="btn btn-danger" onClick={handleConfirmYes}>Confirm</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showPasswordModal && (
+          <div
+            key={passwordModalKey}
+            style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.5)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', zIndex: 1000
+            }}
+            onMouseDown={(e) => { if (e.target === e.currentTarget) setShowPasswordModal(false); }}
+          >
+            <div
+              style={{
+                background: '#1e1e2e', borderRadius: '12px', padding: '30px',
+                minWidth: '360px', maxWidth: '420px', color: '#fff',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ margin: '0 0 8px 0' }}>
+                {ssnState === 'decrypted' ? 'Encrypt SSNs' : 'Decrypt SSNs'}
+              </h3>
+              <p style={{ color: '#aaa', fontSize: '14px', margin: '0 0 20px 0' }}>
+                {needsConfirm
+                  ? 'Create a password to encrypt SSNs. You will need this password to decrypt them later.'
+                  : 'Enter your password.'}
+              </p>
+
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Password</label>
+              <input
+                type="password"
+                autoFocus
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handlePasswordSubmit(); }}
+                style={{
+                  width: '100%', padding: '10px', borderRadius: '6px',
+                  border: '1px solid #444 !important', background: '#2a2a3e', color: '#fff',
+                  fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box',
+                  outline: 'none'
+                }}
+              />
+
+              {needsConfirm && (
+                <>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Confirm Password</label>
+                  <input
+                    type="password"
+                    value={confirmPasswordInput}
+                    onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handlePasswordSubmit(); }}
+                    style={{
+                      width: '100%', padding: '10px', borderRadius: '6px',
+                      border: '1px solid #444', background: '#2a2a3e', color: '#fff',
+                      fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box',
+                      outline: 'none'
+                    }}
+                  />
+                </>
+              )}
+
+              {passwordError && (
+                <p style={{ color: '#ff6b6b', fontSize: '13px', margin: '0 0 12px 0' }}>{passwordError}</p>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setShowPasswordModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handlePasswordSubmit}
+                >
+                  {ssnState === 'decrypted' ? 'Encrypt' : 'Decrypt'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -210,6 +461,7 @@ export default function HomePage() {
   // ── HOME / DATABASE GRID ─────────────────────────────────────────────────
   return (
     <div className="homepage">
+      <img src={logo} alt="logo" className="logo" />
       <header className="homepage-header">
         <h1 className="homepage-title">NAVFIT<span className="title-accent">26</span></h1>
         <p className="homepage-subtitle">FITREP MANAGEMENT SYSTEM</p>
@@ -217,7 +469,7 @@ export default function HomePage() {
 
       <div className="homepage-buttons">
         <button className="btn btn-primary" onClick={handleCreate}>+ New Database</button>
-        <button className="btn btn-secondary" onClick={handleOpenDatabase}>📂 Open Database</button>
+        <button className="btn btn-secondary" onClick={handleOpenDatabase}> Open Database</button>
       </div>
 
       <div className="databases-section">
@@ -260,6 +512,48 @@ export default function HomePage() {
           </>
         )}
       </div>
+
+      {notification && (
+        <div style={{
+          position: 'fixed', top: '60px', left: '50%', transform: 'translateX(-50%)',
+          background: notification.type === 'error' ? '#d9534f' : notification.type === 'success' ? '#28a745' : '#1a6edd',
+          color: '#fff', padding: '12px 24px',
+          borderRadius: '8px', zIndex: 999, fontSize: '14px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)', cursor: 'pointer',
+          maxWidth: '500px', textAlign: 'center'
+        }} onClick={() => setNotification(null)}>
+          {notification.message}
+        </div>
+      )}
+
+      {confirmModal.show && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', zIndex: 1002
+          }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) handleConfirmNo(); }}
+        >
+          <div
+            style={{
+              background: '#1e1e2e', borderRadius: '12px', padding: '30px',
+              minWidth: '340px', maxWidth: '420px', color: '#fff',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 12px 0' }}>{confirmModal.title}</h3>
+            <p style={{ color: '#ccc', fontSize: '14px', margin: '0 0 20px 0', whiteSpace: 'pre-line' }}>
+              {confirmModal.message}
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button className="btn btn-ghost" onClick={handleConfirmNo}>Cancel</button>
+              <button className="btn btn-danger" onClick={handleConfirmYes}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

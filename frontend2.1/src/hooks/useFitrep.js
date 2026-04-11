@@ -25,6 +25,20 @@ export default function useFitrep(dbPath) {
     const [isSaved, setIsSaved] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+    // SSN ENCRYPTION STATE
+    const [ssnEncrypted, setSsnEncrypted] = useState(false);
+    // When an export is blocked by encryption, store which export to resume after decrypt
+    const [pendingExport, setPendingExport] = useState(null); // 'pdf' | 'accdb' | null
+    const [showDecryptModal, setShowDecryptModal] = useState(false);
+
+    // Fetch SSN encryption state on mount
+    useEffect(() => {
+        if (!dbPath) return;
+        window.api.getDbSsnState(dbPath).then(result => {
+            setSsnEncrypted(result.ssnState === 'encrypted');
+        });
+    }, [dbPath]);
+
     // RATER GROUP SUMMARY (computed from all reports in the database)
     const [raterGroupSummary, setRaterGroupSummary] = useState({
         summaryGroupAverage: 'NAN',
@@ -104,11 +118,8 @@ export default function useFitrep(dbPath) {
         if (!dbPath) {
             return triggerNotification("Error", "No database selected! Please open a database from the home screen.", true);
         }
-        if (!formData.name || !formData.uic) {
-            return triggerNotification("Missing Info", "Name and UIC are required to save.", true);
-        }
-
-        // 2. Parse the Full Name into components (e.g. "DOE, JOHN A JR")
+    
+        // 2. Parse the Full Name into components...
         let lastName = "", firstName = "", mi = "", suffix = "";
         if (formData.name) {
             const parts = formData.name.split(',');
@@ -118,16 +129,16 @@ export default function useFitrep(dbPath) {
             mi = rest[1] || '';
             suffix = rest[2] || '';
         }
-
-        // 3. Helper to convert Promotion text to Integer
+    
+        // 3. Helper to convert Promotion text to Integer...
         const promoRecToInt = (val) => {
             const map = { 'NOB': 0, 'SIGNIFICANT PROBLEMS': 1, 'PROGRESSING': 2, 'PROMOTABLE': 3, 'MUST PROMOTE': 4, 'EARLY PROMOTE': 5 };
             return map[val] ?? null;
         };
-
-        // 4. Map to strict NAVFIT98 SQLite Schema
+    
+        // 4. Map to strict NAVFIT98 SQLite Schema...
         const mappedData = {
-            ReportType: "FitRep", // NAVFIT98 requires 'FitRep'; Regular/Concurrent/OpsCdr are separate boolean flags
+            ReportType: "FitRep",
             FullName: formData.name || "",
             FirstName: firstName, 
             MI: mi,              
@@ -135,48 +146,38 @@ export default function useFitrep(dbPath) {
             Suffix: suffix,      
             Rate: formData.grade || "",
             Desig: formData.desig || "",
-            SSN: formData.ssn ? formData.ssn.replace(/-/g, '') : "",
+            SSN: formData.ssn || "",
             UIC: formData.uic || "",
             ShipStation: formData.station || "",
             PromotionStatus: formData.promo || "",
-            BilletSubcat: formData.billetSub || "", // Fixed mismatch
+            BilletSubcat: formData.billetSub || "",
             PhysicalReadiness: formData.physicalRead || "",
-            
-            // Dates
             DateReported: formData.dateRep || null,
             FromDate: formData.fromPeriod || null,
             ToDate: formData.toPeriod || null,
             DateCounseled: formData.dateCounseled || "",
             Counseler: formData.counselor || "",
-
-            // Booleans (1/0)
             Active: formData.dutyStatus === 'ACT' ? 1 : 0, 
-            TAR: formData.dutyStatus === 'FTS' ? 1 : 0, // Fixed mismatch
+            TAR: formData.dutyStatus === 'FTS' ? 1 : 0,
             Inactive: formData.dutyStatus === 'INACT' ? 1 : 0,
             ATADSW: formData.dutyStatus === 'AT/ADSW/' ? 1 : 0,
-
             Periodic: formData.occasion === 'Periodic' ? 1 : 0,
             DetInd: formData.occasion === 'Detachment of Individual' ? 1 : 0,
             Frocking: formData.occasion === 'Detachment of Reporting Senior' ? 1 : 0, 
             Special: formData.occasion === 'Special' ? 1 : 0,
-
             NOB: formData.notObserved === 'Not Observed Report' ? 1 : 0,
             Regular: formData.reportType === 'Regular' ? 1 : 0, 
             Concurrent: formData.reportType === 'Concurrent' ? 1 : 0,
             OpsCdr: formData.reportType === 'Ops Cdr' ? 1 : 0,
-
-            // Reporting Senior Info
             ReportingSenior: formData.reportSenior || "",
             RSGrade: formData.reportGrade || "",
             RSDesig: formData.reportDesig || "",
             RSTitle: formData.reportTitle || "",
             RSUIC: formData.reportUIC || "",
-            RSSSN: formData.reportSSN ? formData.reportSSN.replace(/-/g, '') : "",
+            RSSSN: formData.reportSSN ||  "",
             RSAddress: formData.seniorAddress || "",
-
-            // Trait Scores (radio values are "1.0"-"5.0", "NOB", or "")
             PROF: formData.proExpert && formData.proExpert !== "NOB" ? parseInt(formData.proExpert, 10) : 0,
-            QUAL: 0, // Not used on W2-O6 forms
+            QUAL: 0,
             EO: formData.cmeo && formData.cmeo !== "NOB" ? parseInt(formData.cmeo, 10) : 0,
             MIL: formData.bearing && formData.bearing !== "NOB" ? parseInt(formData.bearing, 10) : 0,
             PA: 0,
@@ -184,33 +185,27 @@ export default function useFitrep(dbPath) {
             LEAD: formData.leadership && formData.leadership !== "NOB" ? parseInt(formData.leadership, 10) : 0,
             MIS: formData.missAccomp && formData.missAccomp !== "NOB" ? parseInt(formData.missAccomp, 10) : 0,
             TAC: formData.tactPerform && formData.tactPerform !== "NOB" ? parseInt(formData.tactPerform, 10) : 0,
-
-            // Other
             Achievements: formData.cmdEmployAch || "",
             PrimaryDuty: formData.primaryDuty || "",
             Duties: formData.duties || "",
             Comments: formData.comments || "",
             RecommendA: formData.milestoneOne || "",
             RecommendB: formData.milestoneTwo || "",
-
             SummarySP: formData.sumPromo?.sigProb || "",
             SummaryProg: formData.sumPromo?.prog || "",
             SummaryProm: formData.sumPromo?.promotable || "",
             SummaryMP: formData.sumPromo?.mustPromote || "",
             SummaryEP: formData.sumPromo?.earlyPromote || "",
-
-            PromotionRecom: promoRecToInt(formData.promotion) // Converted to Integer
+            PromotionRecom: promoRecToInt(formData.promotion)
         };
-
+    
         try {
-            // 5. Build the new payload structure
             const payload = {
                 data: mappedData,
                 dbPath: dbPath,
                 reportId: reportId
             };
-
-            // 6. Send to the updated backend endpoint
+    
             const result = await window.api.saveFitrep(payload);
             
             if (result.success) {
@@ -218,30 +213,42 @@ export default function useFitrep(dbPath) {
                 setIsSaved(true);
                 setHasUnsavedChanges(false);
                 
-                // If this was a new report, capture the ID so subsequent clicks UPDATE instead of duplicating
                 if (!reportId && result.reportId) {
                     setCurrentReportId(result.reportId);
                 }
                 
-                // Note: Ensure setSelectedReport doesn't break if you removed it from your hook
                 if (typeof setSelectedReport === 'function') {
                     setSelectedReport(mappedData);
                 }
-
-                // Refresh rater group summary after save (counts may have changed)
+    
                 fetchRaterGroupSummary();
+                
+                // --- CRITICAL ADDITION ---
+                return result; 
             } else {
                 triggerNotification("Error", result.error, true);
+                // --- CRITICAL ADDITION ---
+                return result;
             }
         } catch (error) {
             triggerNotification("Error", "Failed to communicate with backend.", true);
+            // --- CRITICAL ADDITION ---
+            return { success: false, error: error.message };
         }
     };
 
     const handlePDFExport = async () => {
+        // Block if SSNs are encrypted — prompt user to decrypt first
+        if (ssnEncrypted) {
+            setPendingExport('pdf');
+            setShowDecryptModal(true);
+            return;
+        }
+
         // Build export data directly from current form state so the PDF
         // always reflects what is on screen (not a stale selectedReport).
         const exportData = {
+            dbPath: dbPath || "",
             FullName: formData.name || "",
             Rate: formData.grade || "",
             Desig: formData.desig || "",
@@ -317,6 +324,13 @@ export default function useFitrep(dbPath) {
     if (!dbPath) {
         return triggerNotification("Error", "No database selected.", true);
     }
+
+    // Block if SSNs are encrypted — prompt user to decrypt first
+    if (ssnEncrypted) {
+        setPendingExport('accdb');
+        setShowDecryptModal(true);
+        return;
+    }
     
     // Optional: Auto-save before exporting to ensure the ACCDB has the latest data
     if (hasUnsavedChanges) {
@@ -355,6 +369,33 @@ export default function useFitrep(dbPath) {
     }
   };
 
+    // Called from FitrepForm when user enters password in the decrypt modal
+    const handleDecryptForExport = async (password, reportId) => {
+        const result = await window.api.decryptSSNs({ dbPath, password });
+        if (result.success) {
+            setSsnEncrypted(false);
+            setShowDecryptModal(false);
+            // Re-load the current report to get decrypted SSN values
+            if (dbPath && reportId) {
+                const reportData = await window.api.loadFitrep({ dbPath, reportId });
+                if (reportData && !reportData.error) {
+                    setFormData(prev => ({
+                        ...prev,
+                        ssn: reportData.SSN || '',
+                        reportSSN: reportData.RSSSN || '',
+                    }));
+                }
+            }
+            // Resume the pending export
+            const exportType = pendingExport;
+            setPendingExport(null);
+            if (exportType === 'pdf') handlePDFExport();
+            else if (exportType === 'accdb') handleACCDBExport();
+            return { success: true };
+        }
+        return { success: false, error: result.error || 'Decryption failed.' };
+    };
+
     const getError = (field) => {
         if (validators[field]) {
           const result = validators[field](formData[field], formData);
@@ -367,6 +408,7 @@ export default function useFitrep(dbPath) {
         formData, setFormData, message, setMessage, showModal, setShowModal, modalContent,
         handleChange, handlePDFExport, calculateTraitAverage, handleSaveFitrep,
         handleACCDBExport, handleSQLiteExport, isSaved, hasUnsavedChanges, getError,
-        raterGroupSummary
+        raterGroupSummary, ssnEncrypted, showDecryptModal, setShowDecryptModal,
+        handleDecryptForExport
     };
 }

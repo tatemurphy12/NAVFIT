@@ -16,6 +16,7 @@
     "build:linux": "electron-builder --linux"
   },
   "build": {
+    "icon": "assets/logo",
     "appId": "com.Tate.NAVFIT26",
     "productName": "NAVFIT26",
     "directories": {
@@ -26,7 +27,8 @@
       "preload.js",
       "package.json",
       "frontend_build/**/*",
-      "backend_src/**/*"
+      "backend_src/**/*",
+      "assets/logo.png"
     ],
     "extraResources": [
       {

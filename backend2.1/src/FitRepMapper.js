@@ -56,7 +56,14 @@ class FitRepMapper {
         this.map("f1_28", data.Achievements);
         this.map("f1_29a", data.PrimaryDuty); // Maps to the small Abbrev box
         this.map("f1_29b", data.Duties ? String(data.Duties).toUpperCase() : data.Duties);
-
+        // Apply a precise "first line indent" using spaces for the monospaced Courier font
+        if (data.Duties) {
+            const INDENT_SPACES = "                    "; // ~16 spaces (Adjust by +/- 2 to perfectly clear your specific PDF's box)
+            const formattedDuties = INDENT_SPACES + String(data.Duties).toUpperCase();
+            this.map("f1_29b", formattedDuties);
+        } else {
+            this.map("f1_29b", data.Duties);
+        }
         // --- Block 30-31: Counseling ---
         this.mapDate("f1_30", data.DateCounseled);
         this.map("f1_31", data.Counseler);
