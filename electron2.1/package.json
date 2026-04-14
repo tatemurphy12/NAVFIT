@@ -32,11 +32,8 @@
     ],
     "extraResources": [
       {
-        "from": "bin",
-        "to": "bin",
-        "filter": [
-          "**/*"
-        ]
+        "from": "bin/app.jar",
+        "to": "bin/app.jar"
       },
       {
         "from": "templates",
@@ -50,11 +47,30 @@
       "target": [
         "deb"
       ],
-      "category": "Office"
+      "category": "Office",
+      "maintainer": "Tate Murphy <jtatemurphy@gmail.com>",
+      "extraResources": [
+        {
+          "from": "bin/jre-linux",
+          "to": "bin/jre-linux",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ]
     },
     "win": {
       "target": [
         "nsis"
+      ],
+      "extraResources": [
+        {
+          "from": "bin/jre-win",
+          "to": "bin/jre-win",
+          "filter": [
+            "**/*"
+          ]
+        }
       ]
     },
     "nsis": {

@@ -24,14 +24,17 @@ const PdfFiller = IS_PROD
 // --- 1. CONFIGURATION & PATHS ---
 // Java Paths
 
-// Detect if running on Windows
+// Detect platform and pick the matching bundled JRE folder.
 const isWin = process.platform === 'win32';
+const isLinux = process.platform === 'linux';
+const isMac = process.platform === 'darwin';
 const javaExecutable = isWin ? 'java.exe' : 'java';
+const jreDirName = isWin ? 'jre-win' : isLinux ? 'jre-linux' : 'jre-mac';
 
 // Java Paths
 const JAVA_BIN = IS_PROD
-    ? path.join(process.resourcesPath, 'bin', 'jre', 'bin', javaExecutable)
-    : path.join(BASE_DIR, 'bin', 'jre', 'bin', javaExecutable);
+    ? path.join(process.resourcesPath, 'bin', jreDirName, 'bin', javaExecutable)
+    : path.join(BASE_DIR, 'bin', jreDirName, 'bin', javaExecutable);
 
 const JAR_PATH = IS_PROD
     ? path.join(process.resourcesPath, 'bin', 'app.jar')
