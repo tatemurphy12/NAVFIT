@@ -514,9 +514,10 @@ function isDbEncrypted(dbPath) {
 // 3. Generate PDF
 ipcMain.handle('generate-report', async (e, reportData) => {
     try {
-        // Block export if SSNs are encrypted
+        // If SSNs are encrypted, mask them with asterisks instead of blocking export
         if (reportData && reportData.dbPath && isDbEncrypted(reportData.dbPath)) {
-            return { success: false, error: 'SSNs are currently encrypted. Please decrypt SSNs before exporting to PDF.' };
+            reportData.SSN = '***-**-****';
+            reportData.RSSSN = '***-**-****';
         }
 
         // Pre-calculate the default name to show in the prompt

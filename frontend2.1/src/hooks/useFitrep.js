@@ -238,13 +238,6 @@ export default function useFitrep(dbPath) {
     };
 
     const handlePDFExport = async () => {
-        // Block if SSNs are encrypted — prompt user to decrypt first
-        if (ssnEncrypted) {
-            setPendingExport('pdf');
-            setShowDecryptModal(true);
-            return;
-        }
-
         // Build export data directly from current form state so the PDF
         // always reflects what is on screen (not a stale selectedReport).
         const exportData = {
