@@ -912,9 +912,11 @@ ipcMain.handle('createDatabase', async () => {
     }
 });
 
-// --- 5. APP LIFECYCLE (GUI Setup) ---
+// 1. Declare mainWindow at the top level
+let mainWindow;
+
 function createWindow() {
-    const mainWindow = new BrowserWindow({
+    mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
         webPreferences: {
@@ -925,81 +927,26 @@ function createWindow() {
         }
     });
 
-    createApplicationMenu(mainWindow);
+    // Use our new dynamic menu instead of the old 'createApplicationMenu'
+    setDefaultMenu();
 
-    // 1. Resolve the path absolutely
     const frontendPath = path.resolve(__dirname, 'frontend_build', 'index.html');
 
-    // 2. Debug check: Log to terminal so you can see where it's looking
+    // Debug check: verify file exists
     if (!fs.existsSync(frontendPath)) {
         console.error(`ERROR: Cannot find frontend build at: ${frontendPath}`);
-        console.log("Did you run 'npm run build' in your React folder and move it here?");
     }
 
     mainWindow.loadFile(frontendPath).catch(err => {
         console.error("Failed to load file:", err);
     });
-}
-function createApplicationMenu(mainWindow) {
-    const template = [
-        {
-            label: 'File',
-            submenu: [
 
-                {
-                    label: 'Save',
-                    accelerator: 'CmdOrCtrl+S',
-                    click: () => {
-                        // Use mainWindow (the variable passed into your function)
-                        if (mainWindow) {
-                            mainWindow.webContents.send('menu-save-trigger');
-                        }
-                    }
-                },
-                {
-                    label: 'Return to Database',
-                    accelerator: 'CmdOrCtrl+D',
-                    click: () => {
-                        // Ensure mainWindow exists before sending
-                        if (mainWindow) {
-                            mainWindow.webContents.send('menu-navigate-home');
-                        }
-                    }
-                },
-                { type: 'separator' }, // Added for better UI
-                {
-                    label: 'Quit',
-                    accelerator: process.platform === 'darwin' ? 'Command+Q' : 'Ctrl+Q',
-                    click: () => {
-                        app.quit();
-                    }
-                }
-            ]
-        },
-        {
-            label: 'Edit',
-            submenu: [
-                { role: 'undo' },
-                { role: 'redo' },
-                { type: 'separator' },
-                { role: 'cut' },
-                { role: 'copy' },
-                { role: 'paste' }
-            ]
-        },
-        {
-            label: 'View',
-            submenu: [
-                { role: 'reload' },
-                { role: 'toggleDevTools' }
-            ]
-        }
-    ];
-
-    const menu = Menu.buildFromTemplate(template);
-    Menu.setApplicationMenu(menu);
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+    });
 }
 
+// --- 6. APP START ---
 app.whenReady().then(() => {
     createWindow();
 
@@ -1011,3 +958,63 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
 });
+
+// --- 1. Define the Menu Swapping Functions ---
+
+// The "Standard" menu (Home screen)
+function setDefaultMenu() {
+    const defaultTemplate = [
+        {
+            label: 'File',
+            submenu: [
+                { label: 'Quit', accelerator: 'CmdOrCtrl+Q', click: () => app.quit() }
+            ]
+        },
+        { label: 'View', role: 'viewMenu' }
+    ];
+    const menu = Menu.buildFromTemplate(defaultTemplate);
+    Menu.setApplicationMenu(menu);
+}
+
+// The "FITREP" menu (Editor screen)
+function setFitrepMenu(mainWindow) {
+    const fitrepTemplate = [
+        {
+            label: 'File',
+            submenu: [
+                {
+                    label: 'Save',
+                    accelerator: 'CmdOrCtrl+S',
+                    click: () => mainWindow.webContents.send('menu-save-trigger')
+                },
+                {
+                    label: 'Return to Database',
+                    accelerator: 'CmdOrCtrl+D',
+                    click: () => mainWindow.webContents.send('menu-navigate-home')
+                },
+                { type: 'separator' },
+                { label: 'Quit', accelerator: 'CmdOrCtrl+Q', click: () => app.quit() }
+            ]
+        },
+        { role: 'editMenu' },
+        { role: 'viewMenu' }
+    ];
+    const menu = Menu.buildFromTemplate(fitrepTemplate);
+    Menu.setApplicationMenu(menu);
+}
+
+// --- 2. The Bridge (Listening for React) ---
+
+ipcMain.on('update-menu-style', (event, style) => {
+    // BrowserWindow.fromWebContents is safer for grabbing the specific window
+    const mainWindow = BrowserWindow.fromWebContents(event.sender);
+    
+    if (style === 'fitrep') {
+        console.log("Switching to FITREP menu");
+        setFitrepMenu(mainWindow);
+    } else {
+        console.log("Switching to Default menu");
+        setDefaultMenu();
+    }
+});
+
