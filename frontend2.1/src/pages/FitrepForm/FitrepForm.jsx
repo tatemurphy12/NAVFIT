@@ -75,7 +75,52 @@ export default function FitrepForm() {
     setConfirmModal({ show: false, title: '', message: '' });
   };
 
-  // --- EFFECT 1: Modal Management ---
+  // --- 1. SYNC THE SAVE REF ---
+  // Keeps the menu listener always pointed at the newest form data
+  useEffect(() => {
+    saveRef.current = handleSaveFitrep;
+  }, [handleSaveFitrep]);
+
+  // --- 2. DYNAMIC MENU TOGGLE ---
+  // Tells Electron to show the Save/Return menu when entering, and Hide it when leaving
+  useEffect(() => {
+    if (window.api && window.api.updateMenu) {
+        window.api.updateMenu('fitrep'); // Turn it on
+    }
+
+    // Cleanup: This runs automatically when you leave the FitrepForm
+    return () => {
+        if (window.api && window.api.updateMenu) {
+            window.api.updateMenu('default'); // Turn it off
+        }
+    };
+  }, []); // Only runs on Mount and Unmount
+
+  // --- 3. MENU LISTENER: SAVE ---
+  useEffect(() => {
+    if (window.api && window.api.onMenuSaveTrigger) {
+        const removeListener = window.api.onMenuSaveTrigger(async () => {
+            console.log("Save signal received from Menu");
+            if (saveRef.current) {
+                await saveRef.current(currentReportId, setCurrentReportId);
+            }
+        });
+        return () => { if (removeListener) removeListener(); };
+    }
+  }, [currentReportId, setCurrentReportId]);
+
+  // --- 4. MENU LISTENER: NAVIGATE HOME ---
+  useEffect(() => {
+    if (window.api && window.api.onMenuNavigateHome) {
+      const removeListener = window.api.onMenuNavigateHome(() => {
+        console.log("Menu signal: Navigating home...");
+        navigate('/'); 
+      });
+      return () => { if (removeListener) removeListener(); };
+    }
+  }, [navigate]);
+
+  // --- 5. MODAL MANAGEMENT ---
   useEffect(() => {
     if (showDecryptModal) {
       setDecryptModalKey(prev => prev + 1);
@@ -84,27 +129,7 @@ export default function FitrepForm() {
     }
   }, [showDecryptModal]);
 
-  useEffect(() => {
-      saveRef.current = handleSaveFitrep;
-  }, [handleSaveFitrep]);
-
-  // --- EFFECT 2: Electron Menu Listener (NOW TOP LEVEL) ---
-  useEffect(() => {
-    if (window.api && window.api.onMenuNavigateHome) {
-      const removeListener = window.api.onMenuNavigateHome(() => {
-        console.log("Menu signal received: Returning to Database...");
-        navigate('/'); 
-      });
-
-      return () => {
-        if (typeof removeListener === 'function') {
-          removeListener();
-        }
-      };
-    }
-  }, [navigate]);
-
-  // --- EFFECT 3: Data Pre-fill/Population ---
+  // --- 6. DATA PRE-FILL / POPULATION ---
   useEffect(() => {
     const intToPromoRec = (val) => {
         const map = { 0: 'NOB', 1: 'SIGNIFICANT PROBLEMS', 2: 'PROGRESSING', 3: 'PROMOTABLE', 4: 'MUST PROMOTE', 5: 'EARLY PROMOTE' };
@@ -173,25 +198,6 @@ export default function FitrepForm() {
         });
     }
   }, [reportId, dbPath, setFormData]);
-
-    // 3. Listen for the 'Save' signal from the File Menu
-    useEffect(() => {
-      if (window.api && window.api.onMenuSaveTrigger) {
-          // We add the console log to help you debug in the browser tools (F12)
-          const removeListener = window.api.onMenuSaveTrigger(async () => {
-              console.log("Save signal received from Menu");
-              if (saveRef.current) {
-                  // Pass the current state values
-                  await saveRef.current(currentReportId, setCurrentReportId);
-              }
-          });
-
-          return () => {
-              if (typeof removeListener === 'function') removeListener();
-          };
-      }
-      // Added setCurrentReportId for stability
-  }, [currentReportId, setCurrentReportId]);
 
   // Helper to convert Browser Date (YYYY-MM-DD) to Navy Format (YYMMM DD)
   const formatDateToNavy = (dateString) => {
@@ -1086,10 +1092,18 @@ const totalLines = calculateTrueLines();
     borderTop: '1px dashed #ccc',
     marginTop: '5px'
   }}>
-    <span>
-      {getError('primaryDuty').isError ? getError('primaryDuty').note : ""}
+    <span style={{ color: 'red', fontSize: '11px', fontWeight: 'bold' }}>
+      {/* Show the specific duties error if it exists */}
+      {getError('duties').isError ? getError('duties').note : ""}
+      {/* Also show primary duty error if it exists */}
+      {!getError('duties').isError && getError('primaryDuty').isError ? getError('primaryDuty').note : ""}
     </span>
-    <span style={{ color: '#666' }}>
+    
+    <span style={{ 
+      // DYNAMIC COLOR: If length > MAX, make it red. Otherwise, grey (#666).
+      color: (formData.duties || "").length > FITREP_CONFIG.MAX_ACHIEVEMENT_LENGTH ? 'red' : '#666',
+      fontWeight: (formData.duties || "").length > FITREP_CONFIG.MAX_ACHIEVEMENT_LENGTH ? 'bold' : 'normal'
+    }}>
       {(formData.duties || "").length} / {FITREP_CONFIG.MAX_ACHIEVEMENT_LENGTH}
     </span>
   </div>
@@ -1754,9 +1768,9 @@ const totalLines = calculateTrueLines();
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <h3 style={{ margin: '0 0 8px 0' }}>SSNs Are Encrypted</h3>
+          <h3 style={{ margin: '0 0 8px 0' }}>Enter Password to Export</h3>
           <p style={{ color: '#aaa', fontSize: '14px', margin: '0 0 20px 0' }}>
-            SSNs must be decrypted before exporting. Enter your password to decrypt and continue.
+            SSNs are encrypted. Enter your password to decrypt and export to ACCDB.
           </p>
           <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Password</label>
           <input
@@ -1764,12 +1778,11 @@ const totalLines = calculateTrueLines();
             autoFocus
             value={decryptPassword}
             onChange={(e) => setDecryptPassword(e.target.value)}
-            onKeyDown={(e) => {
+            onKeyDown={async (e) => {
               if (e.key === 'Enter') {
-                handleDecryptForExport(decryptPassword, currentReportId).then(r => {
-                  if (!r.success) setDecryptError(r.error);
-                  else { setDecryptPassword(''); setDecryptError(''); }
-                });
+                const r = await handleDecryptForExport(decryptPassword, currentReportId);
+                if (!r.success) setDecryptError(r.error);
+                else { setDecryptPassword(''); setDecryptError(''); }
               }
             }}
             style={{
@@ -1784,13 +1797,13 @@ const totalLines = calculateTrueLines();
           )}
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
             <button
-              style={{ background: '#555', border: 'none', padding: '8px 16px', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
+              className="btn btn-ghost"
               onClick={() => { setShowDecryptModal(false); setDecryptPassword(''); setDecryptError(''); }}
             >
               Cancel
             </button>
             <button
-              style={{ background: '#4a90d9', border: 'none', padding: '8px 16px', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
+              className="btn btn-primary"
               onClick={async () => {
                 const r = await handleDecryptForExport(decryptPassword, currentReportId);
                 if (!r.success) setDecryptError(r.error);

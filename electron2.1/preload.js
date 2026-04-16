@@ -31,4 +31,5 @@ contextBridge.exposeInMainWorld('api', {
     getDbSsnState: (dbPath) => ipcRenderer.invoke('getDbSsnState', dbPath),
     encryptSSNs: (data) => ipcRenderer.invoke('encryptSSNs', data),
     decryptSSNs: (data) => ipcRenderer.invoke('decryptSSNs', data),
+    updateMenu: (style) => ipcRenderer.send('update-menu-style', style),
 });

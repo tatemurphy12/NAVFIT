@@ -1,0 +1,5 @@
+# Preserve byte-exact contents of bundled JREs across platforms.
+# Without this, git's CRLF auto-conversion on Windows checkouts mangles
+# Linux JRE config/text files (and the ELF binaries would be at risk too).
+electron2.1/bin/jre-linux/** -text
+electron2.1/bin/jre-win/** -text

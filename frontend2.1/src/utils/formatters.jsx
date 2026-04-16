@@ -294,32 +294,29 @@ comments: (val, formData) => {
     return { isError: false, note: "" };
   }
 
-  // 1. Set your fixed character limit per line (Navy standard is ~90)
-const MAX_CHARS_PER_LINE = 90; 
-const MAX_LINES = 18;
+  const calculateLineCount = (val) => {
+    const MAX_CHARS_PER_LINE = 90; 
+    const MAX_LINES = 18;
 
-// 2. Split by manual enters first
-const manualLines = val.split('\n');
+    if (!val) return { lines: 0, isError: false };
 
-let totalLines = 0;
+    const manualLines = val.split('\n');
+    let totalLines = 0;
 
-manualLines.forEach(line => {
-  // If a line is empty, it still counts as 1 line
-  if (line.length === 0) {
-    totalLines += 1;
-  } else {
-    // Calculate how many lines this specific string takes up
-    // Math.ceil(100 / 90) = 2 lines
-    totalLines += Math.ceil(line.length / MAX_CHARS_PER_LINE);
-  }
-});
+    manualLines.forEach(line => {
+        // A line with 0 length is 1 line. 
+        // A line with 1-90 chars is 1 line.
+        // A line with 91 chars is 2 lines.
+        const wrappedLines = Math.max(1, Math.ceil(line.length / MAX_CHARS_PER_LINE));
+        totalLines += wrappedLines;
+    });
 
-if (totalLines > MAX_LINES) {
-  return { 
-    isError: true, 
-    note: `Exceeds 18-line limit (Estimated: ${totalLines}/${MAX_LINES})` 
-  };
-}
+    return {
+        totalLines,
+        isError: totalLines > MAX_LINES,
+        note: totalLines > MAX_LINES ? `Exceeds ${MAX_LINES}-line limit` : ""
+    };
+};
 
   // 2. Physical Readiness Check
   // If Block 20 contains 'B' (BCA failure), ensure it's mentioned in comments
