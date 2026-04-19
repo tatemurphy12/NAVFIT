@@ -35,4 +35,4 @@ In accordance with course policies regarding the disclosure of LLM usage, the fo
 Portions of this software (UCanAccess, Jackcess) are licensed under the Apache License, Version 2.0 (the "License"). You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0.
 
 #### JRE / OpenJDK Notice
-The bundled JRE is provided under the GNU General Public License, version 2, with the Classpath Exception. For the full text of this license, see `LICENSE-JRE.txt` in the root directory.
+The bundled JRE is provided under the GNU General Public License, version 2, with the Classpath Exception. For the full text of this license, see `JRE-LICENSE.txt` in the legal directory.
