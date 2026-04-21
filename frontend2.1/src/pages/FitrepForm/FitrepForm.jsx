@@ -1050,7 +1050,6 @@ const totalLines = calculateTrueLines();
   }}>
     <input 
       type="text"
-      maxLength="14"
       value={formData.primaryDuty} 
       onChange={(e) => handleChange('primaryDuty', e.target.value.toUpperCase())} 
       style={{ 
@@ -1100,9 +1099,10 @@ const totalLines = calculateTrueLines();
     </span>
     
     <span style={{ 
-      // DYNAMIC COLOR: If length > MAX, make it red. Otherwise, grey (#666).
+      // Color still turns red when over the limit
       color: (formData.duties || "").length > FITREP_CONFIG.MAX_ACHIEVEMENT_LENGTH ? 'red' : '#666',
-      fontWeight: (formData.duties || "").length > FITREP_CONFIG.MAX_ACHIEVEMENT_LENGTH ? 'bold' : 'normal'
+      // Font weight is now always normal
+      fontWeight: 'normal' 
     }}>
       {(formData.duties || "").length} / {FITREP_CONFIG.MAX_ACHIEVEMENT_LENGTH}
     </span>
@@ -1334,57 +1334,76 @@ const totalLines = calculateTrueLines();
       />
     </div>
 
-      {/* BLOCK 40: MILESTONES */}
-<div className="navfit-row" style={{ 
-  display: 'flex', 
-  borderLeft: '1px solid black', 
-  borderRight: '1px solid black',
-  borderBottom: '1px solid black' /* Added bottom border to close the box */
-}}>
-  {/* LEFT: Labels */}
-  <div className="navfit-cell" style={{ flex: 3, display: 'flex', flexDirection: 'column' }}>
-    <label>40. I recommend screening this individual for next career milestone(s) as follows: (maximum of two)</label>
-    <label>Recommendations may be for competitive schools or duty assignments such as:</label>
-    <label>SCP, Dept Head, XO, OIC, CO, Major Command, War College, PG School</label>
-  </div>
+    {/* BLOCK 40: MILESTONES */}
+    <div className="navfit-row" style={{ 
+      display: 'flex', 
+      borderLeft: '1px solid black', 
+      borderRight: '1px solid black',
+      borderBottom: '1px solid black'
+    }}>
+      {/* LEFT: Labels - We explicitly kill the right border here */}
+      <div className="navfit-cell" style={{ 
+        flex: 3, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        padding: '2px',
+        borderRight: 'none' // Ensures no line on the right side of the text
+      }}>
+        <label style={{ fontSize: '10px' }}>40. I recommend screening this individual for next career milestone(s) as follows: (maximum of two)</label>
+        <label style={{ fontSize: '9px', fontStyle: 'italic' }}>Recommendations may be for competitive schools or duty assignments such as:</label>
+        <label style={{ fontSize: '9px' }}>SCP, Dept Head, XO, OIC, CO, Major Command, War College, PG School</label>
+      </div>
 
-  {/* MIDDLE: Milestone One Box */}
-  <div 
-    className={`navfit-cell ${getError('milestoneOne').isError ? "input-error" : ""}`} 
-    style={{ 
-      flex: 0.5, 
-      borderLeft: '1px solid black', /* CRITICAL: This creates the first box in the PDF */
-      display: 'flex',
-      alignItems: 'center'
-    }}
-  >
-    <input 
-      className="navfit-input" 
-      value={formData.milestoneOne} 
-      onChange={(e) => handleChange('milestoneOne', e.target.value.toUpperCase())}
-      style={{ textAlign: 'center' }} 
-    />
-  </div>
+      {/* MIDDLE: Milestone One Box - Explicitly kill the left border here */}
+      <div 
+        className={`navfit-cell ${getError('milestoneOne').isError ? "input-error" : ""}`} 
+        style={{ 
+          flex: 0.5, 
+          borderLeft: 'none', // Forces the line between text and box to vanish
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <input 
+          className="navfit-input" 
+          value={formData.milestoneOne} 
+          onChange={(e) => handleChange('milestoneOne', e.target.value.toUpperCase())}
+          style={{ 
+            textAlign: 'center', 
+            borderBottom: '1px solid black', // Creates the "underline" look for the box
+            width: '80%',
+            outline: 'none'
+          }} 
+        />
+      </div>
 
-  {/* RIGHT: Milestone Two Box */}
-  <div 
-    className={`navfit-cell ${getError('milestoneTwo').isError ? "input-error" : ""}`} 
-    style={{ 
-      flex: 0.5, 
-      borderLeft: '1px solid black', /* CRITICAL: This separates the two boxes in the PDF */
-      display: 'flex',
-      alignItems: 'center'
-    }}
-  >
-    <input 
-      className="navfit-input" 
-      value={formData.milestoneTwo} 
-      onChange={(e) => handleChange('milestoneTwo', e.target.value.toUpperCase())}
-      style={{ textAlign: 'center' }}
-    />
-  </div>
-</div>
-   {/* BLOCK 41: COMMENTS */}
+      {/* RIGHT: Milestone Two Box - Keep this border to separate the two boxes */}
+      <div 
+        className={`navfit-cell ${getError('milestoneTwo').isError ? "input-error" : ""}`} 
+        style={{ 
+          flex: 0.5, 
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <input 
+          className="navfit-input" 
+          value={formData.milestoneTwo} 
+          onChange={(e) => handleChange('milestoneTwo', e.target.value.toUpperCase())}
+          style={{ 
+            textAlign: 'center', 
+            borderBottom: '1px solid black', 
+            width: '80%',
+            outline: 'none'
+          }}
+        />
+      </div>
+    </div>
+
+  {/* BLOCK 41: COMMENTS */}
+{/* BLOCK 41: COMMENTS */}
 <div 
   className={`navfit-row ${getError('comments').isError ? "input-error" : ""}`} 
   style={{ 
@@ -1393,15 +1412,15 @@ const totalLines = calculateTrueLines();
     borderLeft: '1px solid black', 
     borderRight: '1px solid black', 
     padding: '5px',
-    minHeight: '220px' 
+    height: '27.25rem', 
+    overflow: 'hidden' // Prevents the container from expanding
   }}
 >
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
     <label>
-      41. COMMENTS ON PERFORMANCE: <span>* All 1.0 marks, three 2.0 marks, and 2.0 marks in Block 34 must be specifically substantiated</span>
+      41. COMMENTS ON PERFORMANCE: <span style={{ fontSize: '9px', fontStyle: 'italic' }}>* All 1.0 marks, three 2.0 marks, and 2.0 marks in Block 34 must be specifically substantiated</span>
     </label>
     
-    {/* Font Size Selector */}
     <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
       <span style={{ fontSize: '9px' }}>FONT:</span>
       <select 
@@ -1416,35 +1435,36 @@ const totalLines = calculateTrueLines();
   </div>
 
   <textarea 
-  value={formData.comments} 
-  onChange={(e) => handleChange('comments', e.target.value)} 
-  className="navfit-textarea block-41-textarea"
-  style={{ 
-    width: '100%', 
-    flex: 1,
-    minHeight: '180px', 
-    fontSize: formData.commentFontSize || "10px", 
-    /* CHANGED: Use 'px' or 'rem' so the line counter math is exact */
-    lineHeight: '1.25rem', 
-    resize: 'none',
-    boxSizing: 'border-box', 
-    overflow: 'hidden'
-  }} 
-/>
+    value={formData.comments} 
+    onChange={(e) => handleChange('comments', e.target.value)} 
+    className="navfit-textarea block-41-textarea"
+    style={{ 
+      width: '100%', 
+      flex: 1,
+      /* 18 lines * 1.25rem = 22.5rem */
+      height: '22.5rem', 
+      fontSize: formData.commentFontSize || "10px", 
+      lineHeight: '1.25rem', 
+      resize: 'none',
+      boxSizing: 'border-box', 
+      overflowY: 'hidden', // Text will just hide if it goes over
+      backgroundColor: 'transparent',
+      border: 'none',
+      outline: 'none'
+    }} 
+  />
 
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
-    {/* Error Note Area */}
-    <div className="error-note">
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px', borderTop: '1px dashed #ccc', paddingTop: '5px' }}>
+    <div className="error-note" style={{ color: 'red', fontSize: '11px' }}>
       {getError('comments').isError && getError('comments').note}
     </div>
 
-    {/* Metadata Stats */}
-    <div style={{ textAlign: 'right', opacity: 0.7 }}>
-    <span style={{ marginRight: '10px', color: totalLines > 18 ? 'red' : 'inherit' }}>
-      LINES: {totalLines} / 18
-    </span>
-    <span>CHARS: {formData.comments.length}</span>
-  </div>
+    <div style={{ textAlign: 'right', opacity: 0.7, fontSize: '11px' }}>
+      <span style={{ marginRight: '10px', color: totalLines > 18 ? 'red' : 'inherit' }}>
+        LINES: {totalLines} / 18
+      </span>
+      <span>CHARS: {(formData.comments || "").length}</span>
+    </div>
   </div>
 </div>
 
