@@ -238,13 +238,6 @@ export default function useFitrep(dbPath) {
     };
 
     const handlePDFExport = async () => {
-        // Block if SSNs are encrypted — prompt user to decrypt first
-        if (ssnEncrypted) {
-            setPendingExport('pdf');
-            setShowDecryptModal(true);
-            return;
-        }
-
         // Build export data directly from current form state so the PDF
         // always reflects what is on screen (not a stale selectedReport).
         const exportData = {
@@ -389,8 +382,22 @@ export default function useFitrep(dbPath) {
             // Resume the pending export
             const exportType = pendingExport;
             setPendingExport(null);
-            if (exportType === 'pdf') handlePDFExport();
-            else if (exportType === 'accdb') handleACCDBExport();
+            if (exportType === 'pdf') {
+                handlePDFExport();
+            } else if (exportType === 'accdb') {
+                // Call export API directly — handleACCDBExport would re-check
+                // ssnEncrypted via stale closure and re-open the modal
+                try {
+                    const response = await window.api.exportACCDB(dbPath);
+                    if (response.success) {
+                        triggerNotification('Success', `ACCDB Exported successfully to:\n${response.path}`, false);
+                    } else if (response.error !== "ACCDB Export cancelled.") {
+                        triggerNotification('Error', `Failed to export ACCDB: ${response.error}`, true);
+                    }
+                } catch (error) {
+                    triggerNotification('Error', 'An unexpected error occurred during ACCDB export.', true);
+                }
+            }
             return { success: true };
         }
         return { success: false, error: result.error || 'Decryption failed.' };

@@ -16,6 +16,7 @@ export default function HomePage() {
   const [passwordInput, setPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [exportPending, setExportPending] = useState(false);
   const [ssnMessage, setSsnMessage] = useState(null);
 
   // General notification toast (replaces window.alert)
@@ -229,6 +230,20 @@ export default function HomePage() {
         setSsnMessage(`SSNs decrypted. ${result.recordsUpdated} report(s) updated.`);
         const rows = await window.api.loadFitreps(openedDb.path);
         if (!rows.error) setFitreps(rows || []);
+        // Auto-export if this decryption was triggered by Export ACCDB
+        if (exportPending) {
+          setExportPending(false);
+          try {
+            const exportResult = await window.api.exportACCDB(openedDb.path);
+            if (exportResult.success) {
+              setNotification({ message: `ACCDB exported successfully! ${exportResult.path}`, type: 'success' });
+            } else if (exportResult.error && exportResult.error !== "ACCDB Export cancelled.") {
+              setNotification({ message: `Export failed: ${exportResult.error}`, type: 'error' });
+            }
+          } catch (err) {
+            setNotification({ message: `Export failed: ${err.message || err}`, type: 'error' });
+          }
+        }
       } else {
         setPasswordError(result.error || 'Decryption failed.');
       }
@@ -236,6 +251,16 @@ export default function HomePage() {
   };
 
   const handleExportACCDB = async () => {
+    if (ssnState === 'encrypted') {
+      // Show password modal for decrypt-then-export flow
+      setExportPending(true);
+      setPasswordInput('');
+      setConfirmPasswordInput('');
+      setPasswordError('');
+      setPasswordModalKey(prev => prev + 1);
+      setShowPasswordModal(true);
+      return;
+    }
     try {
       const result = await window.api.exportACCDB(openedDb.path);
       if (result.success) {
@@ -381,7 +406,7 @@ export default function HomePage() {
               background: 'rgba(0,0,0,0.5)', display: 'flex',
               alignItems: 'center', justifyContent: 'center', zIndex: 1000
             }}
-            onMouseDown={(e) => { if (e.target === e.currentTarget) setShowPasswordModal(false); }}
+            onMouseDown={(e) => { if (e.target === e.currentTarget) { setShowPasswordModal(false); setExportPending(false); } }}
           >
             <div
               style={{
@@ -392,10 +417,12 @@ export default function HomePage() {
               onMouseDown={(e) => e.stopPropagation()}
             >
               <h3 style={{ margin: '0 0 8px 0' }}>
-                {ssnState === 'decrypted' ? 'Encrypt SSNs' : 'Decrypt SSNs'}
+                {exportPending ? 'Enter Password to Export' : ssnState === 'decrypted' ? 'Encrypt SSNs' : 'Decrypt SSNs'}
               </h3>
               <p style={{ color: '#aaa', fontSize: '14px', margin: '0 0 20px 0' }}>
-                {needsConfirm
+                {exportPending
+                  ? 'SSNs are encrypted. Enter your password to decrypt and export to ACCDB.'
+                  : needsConfirm
                   ? 'Create a password to encrypt SSNs. You will need this password to decrypt them later.'
                   : 'Enter your password.'}
               </p>
@@ -440,7 +467,7 @@ export default function HomePage() {
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                 <button
                   className="btn btn-ghost"
-                  onClick={() => setShowPasswordModal(false)}
+                  onClick={() => { setShowPasswordModal(false); setExportPending(false); }}
                 >
                   Cancel
                 </button>
@@ -448,7 +475,7 @@ export default function HomePage() {
                   className="btn btn-primary"
                   onClick={handlePasswordSubmit}
                 >
-                  {ssnState === 'decrypted' ? 'Encrypt' : 'Decrypt'}
+                  {exportPending ? 'Decrypt & Export' : ssnState === 'decrypted' ? 'Encrypt' : 'Decrypt'}
                 </button>
               </div>
             </div>

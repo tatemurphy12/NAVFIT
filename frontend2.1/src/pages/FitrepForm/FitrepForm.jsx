@@ -1788,9 +1788,9 @@ const totalLines = calculateTrueLines();
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <h3 style={{ margin: '0 0 8px 0' }}>SSNs Are Encrypted</h3>
+          <h3 style={{ margin: '0 0 8px 0' }}>Enter Password to Export</h3>
           <p style={{ color: '#aaa', fontSize: '14px', margin: '0 0 20px 0' }}>
-            SSNs must be decrypted before exporting. Enter your password to decrypt and continue.
+            SSNs are encrypted. Enter your password to decrypt and export to ACCDB.
           </p>
           <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', color: '#ccc' }}>Password</label>
           <input
@@ -1798,12 +1798,11 @@ const totalLines = calculateTrueLines();
             autoFocus
             value={decryptPassword}
             onChange={(e) => setDecryptPassword(e.target.value)}
-            onKeyDown={(e) => {
+            onKeyDown={async (e) => {
               if (e.key === 'Enter') {
-                handleDecryptForExport(decryptPassword, currentReportId).then(r => {
-                  if (!r.success) setDecryptError(r.error);
-                  else { setDecryptPassword(''); setDecryptError(''); }
-                });
+                const r = await handleDecryptForExport(decryptPassword, currentReportId);
+                if (!r.success) setDecryptError(r.error);
+                else { setDecryptPassword(''); setDecryptError(''); }
               }
             }}
             style={{
@@ -1818,13 +1817,13 @@ const totalLines = calculateTrueLines();
           )}
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
             <button
-              style={{ background: '#555', border: 'none', padding: '8px 16px', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
+              className="btn btn-ghost"
               onClick={() => { setShowDecryptModal(false); setDecryptPassword(''); setDecryptError(''); }}
             >
               Cancel
             </button>
             <button
-              style={{ background: '#4a90d9', border: 'none', padding: '8px 16px', borderRadius: '6px', color: '#fff', cursor: 'pointer' }}
+              className="btn btn-primary"
               onClick={async () => {
                 const r = await handleDecryptForExport(decryptPassword, currentReportId);
                 if (!r.success) setDecryptError(r.error);
