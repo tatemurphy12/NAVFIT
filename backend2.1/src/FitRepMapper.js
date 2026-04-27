@@ -7,6 +7,7 @@ class FitRepMapper {
 
     mapDataModel(data) {
         if (!data) return;
+        console.log('[Mapper] StatementYes:', data.StatementYes, 'StatementNo:', data.StatementNo);
 
         // --- Block 1-4: Personal ---
         this.map("f1_01", data.FullName);
@@ -55,7 +56,6 @@ class FitRepMapper {
         // --- Block 28-29: Duties ---
         this.map("f1_28", data.Achievements);
         this.map("f1_29a", data.PrimaryDuty); // Maps to the small Abbrev box
-        this.map("f1_29b", data.Duties ? String(data.Duties).toUpperCase() : data.Duties);
         // Apply a precise "first line indent" using spaces for the monospaced Courier font
         if (data.Duties) {
             const INDENT_SPACES = "                    "; // ~16 spaces (Adjust by +/- 2 to perfectly clear your specific PDF's box)
@@ -87,12 +87,13 @@ class FitRepMapper {
         this.mapPromotionCheckbox(data.PromotionRecom);
 
         // --- Block 43: Summary Group (Text Counts) ---
-        this.map("f1_43_NOB", data.SummaryNOB);
-        this.map("f1_43_SigProb", data.SummarySP);
-        this.map("f1_43_Prog", data.SummaryProg);
-        this.map("f1_43_Prom", data.SummaryProm);
-        this.map("f1_43_MP", data.SummaryMP);
-        this.map("f1_43_EP", data.SummaryEP);
+        // FIX: Only map NOB if it has a real non-zero value to prevent stray "0" rendering
+        this.mapSummaryCount("f1_43_NOB",    data.SummaryNOB);
+        this.mapSummaryCount("f1_43_SigProb", data.SummarySP);
+        this.mapSummaryCount("f1_43_Prog",    data.SummaryProg);
+        this.mapSummaryCount("f1_43_Prom",    data.SummaryProm);
+        this.mapSummaryCount("f1_43_MP",      data.SummaryMP);
+        this.mapSummaryCount("f1_43_EP",      data.SummaryEP);
 
         // --- Block 44: Address ---
         this.map("f1_44", data.RSAddress);
@@ -103,15 +104,14 @@ class FitRepMapper {
         // Signature/Date skipped
 
         // --- Block 46: Statement (CHECKBOXES -> "Yes") ---
+        // FIX: Marked as "X" so PdfFiller's unified X-draw path handles them
+        // consistently whether the fields are PDFCheckBox or PDFTextField types.
         if (data.StatementYes) this.pdfMap["f1_46_yes"] = "Yes";
         if (data.StatementNo)  this.pdfMap["f1_46_no"]  = "Yes";
+        console.log('[Mapper] f1_46_yes:', this.pdfMap["f1_46_yes"], 'f1_46_no:', this.pdfMap["f1_46_no"]);
         // Signature/Date skipped
 
         // --- Block 47: Regular Reporting Senior ---
-        // Note: You mentioned 47 are checkboxes, but usually this block
-        // requires the text details (Name/Command). 
-        // I am mapping the TEXT to f1_47. 
-        // If f1_47 is truly a checkbox in your PDF, this data will not appear.
         this.map("f1_47", data.RRSCombined);
     }
 
@@ -123,12 +123,11 @@ class FitRepMapper {
      */
     formatSSN(rawSSN) {
         if (!rawSSN) return rawSSN;
-        // Strip any existing dashes/spaces to normalize
         const digits = String(rawSSN).replace(/[\s-]/g, '');
         if (digits.length === 9 && /^\d{9}$/.test(digits)) {
             return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
         }
-        return String(rawSSN); // Return as-is if not a clean 9-digit SSN
+        return String(rawSSN);
     }
 
     map(field, value) {
@@ -147,6 +146,18 @@ class FitRepMapper {
     }
 
     /**
+     * FIX: Only maps summary count fields if the value is a real non-zero number.
+     * Prevents stray "0" from appearing in empty summary boxes (e.g. NOB).
+     */
+    mapSummaryCount(field, value) {
+        if (value === undefined || value === null || value === "") return;
+        const num = parseInt(value, 10);
+        // Skip zero values — leave the box blank rather than printing "0"
+        if (isNaN(num) || num === 0) return;
+        this.pdfMap[field] = String(num);
+    }
+
+    /**
      * Maps a score to a specific TEXT BOX by marking it with "X".
      */
     mapTraitText(baseName, score) {
@@ -159,12 +170,11 @@ class FitRepMapper {
         } else {
             const s = parseInt(score);
             if (!isNaN(s) && s >= 1 && s <= 5) {
-                targetSuffix = String(s); // e.g. "4"
+                targetSuffix = String(s);
             }
         }
 
         if (targetSuffix) {
-            // Sends "X" because these are Text Boxes
             this.pdfMap[`${baseName}_${targetSuffix}`] = "X";
         }
     }
@@ -176,7 +186,6 @@ class FitRepMapper {
         if (!code) return;
         const c = parseInt(code);
         
-        // Keys based on your PDF Inspector output
         const keys = {
             1: "f42_NOB",
             2: "f1_42_SigProb",

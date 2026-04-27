@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+ import { useState, useEffect } from 'react';
 import validators from '../utils/formatters'; // Import the toolbox
 
 export default function useFitrep(dbPath) {
@@ -317,6 +317,8 @@ export default function useFitrep(dbPath) {
             SummaryMP: formData.sumPromo?.mustPromote || "",
             SummaryEP: formData.sumPromo?.earlyPromote || "",
             RSCA: raterGroupSummary?.summaryGroupAverage || "",
+            StatementYes: formData.statementOption === 'submitted' ? 1 : 0,
+            StatementNo: formData.statementOption === 'none' ? 1 : 0,
         };
         const result = await window.api.exportPDF(exportData);
         if (result.success) {

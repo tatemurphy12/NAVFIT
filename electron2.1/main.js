@@ -22,13 +22,9 @@ const PdfFiller = IS_PROD
     : require('../backend2.1/src/PdfFiller');
 
 // --- 1. CONFIGURATION & PATHS ---
-// Java Paths
-
-// Detect if running on Windows
 const isWin = process.platform === 'win32';
 const javaExecutable = isWin ? 'java.exe' : 'java';
 
-// Java Paths
 const JAVA_BIN = IS_PROD
     ? path.join(process.resourcesPath, 'bin', 'jre', 'bin', javaExecutable)
     : path.join(BASE_DIR, 'bin', 'jre', 'bin', javaExecutable);
@@ -37,16 +33,14 @@ const JAR_PATH = IS_PROD
     ? path.join(process.resourcesPath, 'bin', 'app.jar')
     : path.join(BASE_DIR, 'bin', 'app.jar');
 
-// PDF Template Path
 const PDF_TEMPLATE = IS_PROD
     ? path.join(process.resourcesPath, 'templates', 'navfit_fitrep_report_fillable_template.pdf')
     : path.join(PROJECT_ROOT, 'templates', 'navfit_fitrep_report_fillable_template.pdf');
 
-// --- 1. DYNAMIC USER PATHS ---
+// --- DYNAMIC USER PATHS ---
 const DOCUMENTS_DIR = app.getPath('documents');
 const USER_DATA_DIR = app.getPath('userData');
 
-// Dev = local project folder. Prod = user's Documents folder.
 const INTERNAL_DATA_DIR = IS_PROD
     ? path.join(USER_DATA_DIR, 'working_data')
     : path.join(BASE_DIR, 'working_data');
@@ -55,13 +49,12 @@ const OUTWARD_DIR = IS_PROD
     ? path.join(DOCUMENTS_DIR, 'NavFit_Output')
     : path.join(BASE_DIR, 'output_files');
 
-// 3. ENSURE DIRECTORIES EXIST
 [OUTWARD_DIR, INTERNAL_DATA_DIR].forEach(dir => {
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
 });
-// --- NEW: HOMEPAGE DATABASE TRACKING ---
+
 const DATABASES_LIST_PATH = path.join(app.getPath('userData'), 'databases.json');
 
 function getDatabasesList() {
@@ -70,7 +63,6 @@ function getDatabasesList() {
     }
     try {
         const list = JSON.parse(fs.readFileSync(DATABASES_LIST_PATH, 'utf-8'));
-        // Migrate existing entries to include ssnState and ssnPassword
         let needsSave = false;
         for (const db of list) {
             if (db.ssnState === undefined) {
@@ -92,7 +84,6 @@ function saveDatabasesList(list) {
     fs.writeFileSync(DATABASES_LIST_PATH, JSON.stringify(list));
 }
 
-// 4. DEFAULTS MAPPING
 const DEFAULTS = {
     ACCDB_IN: IS_PROD
         ? path.join(process.resourcesPath, 'bin', 'Murphy_example_FITREP.accdb')
@@ -104,7 +95,6 @@ const DEFAULTS = {
     PDF_OUT_DIR: OUTWARD_DIR
 };
 
-// --- DATABASE SEEDING LOGIC ---
 const SQLITE_TEMPLATE = IS_PROD
     ? path.join(process.resourcesPath, 'templates', 'database_template.db')
     : path.join(PROJECT_ROOT, 'templates', 'database_template.db');
@@ -148,6 +138,13 @@ async function runReportLogic(inputData, pdfOutPath) {
 
     const mapper = new FitRepMapper();
     mapper.mapDataModel(dataModel);
+
+    // Inject font size directives so PdfFiller uses them at export time.
+    // _defaultFontSize  = all regular text fields (slightly smaller)
+    // _commentsFontSize = field f1_41 only
+    mapper.pdfMap['_defaultFontSize']  = 8;
+    mapper.pdfMap['_commentsFontSize'] = 10;
+
     mapper.exportJson(jsonTempPath);
 
     if (!fs.existsSync(PDF_TEMPLATE)) throw new Error(`PDF Template missing at: ${PDF_TEMPLATE}`);
@@ -158,7 +155,6 @@ async function runReportLogic(inputData, pdfOutPath) {
 
 // --- DATABASE RECORD HANDLERS (READ / WRITE / DELETE) ---
 
-
 ipcMain.handle('save-fitrep', async (e, payload) => {
     const { data, dbPath, reportId } = payload;
     const targetDb = dbPath || DEFAULTS.SQLITE;
@@ -166,11 +162,15 @@ ipcMain.handle('save-fitrep', async (e, payload) => {
     try {
         const db = new Database(targetDb);
         
-        // Ensure the Folders table has a Root entry (Required for legacy NAVFIT compatibility)
         const rootExists = db.prepare("SELECT FolderID FROM [Folders] WHERE FolderID = 1").get();
         if (!rootExists) {
             db.prepare(`INSERT INTO [Folders] (FolderName, FolderID, Parent, Active) VALUES (?, ?, ?, ?)`).run('Root', 1, 0, 1);
         }
+
+        // FIX: Guarantee StatementYes/StatementNo are always present as integers
+        // regardless of whether the frontend form sends them or not.
+        data.StatementYes = data.StatementYes ? 1 : 0;
+        data.StatementNo  = data.StatementNo  ? 1 : 0;
 
         if (!reportId) {
             // -- ADD NEW REPORT (INSERT) --
@@ -183,7 +183,8 @@ ipcMain.handle('save-fitrep', async (e, payload) => {
                     ReportingSenior, RSGrade, RSDesig, RSTitle, RSUIC, RSSSN, RSAddress,
                     Achievements, PrimaryDuty, Duties, DateCounseled, Counseler,
                     PROF, QUAL, EO, MIL, PA, TEAM, LEAD, MIS, TAC,
-                    RecommendA, RecommendB, Comments, PromotionRecom
+                    RecommendA, RecommendB, Comments, PromotionRecom,
+                    StatementYes, StatementNo
                 ) VALUES (
                     'a 1', @ReportType, @FullName, @FirstName, @MI, @LastName, @Suffix,
                     @Rate, @Desig, @SSN, @Active, @TAR, @Inactive, @ATADSW, @UIC, @ShipStation,
@@ -192,7 +193,8 @@ ipcMain.handle('save-fitrep', async (e, payload) => {
                     @ReportingSenior, @RSGrade, @RSDesig, @RSTitle, @RSUIC, @RSSSN, @RSAddress,
                     @Achievements, @PrimaryDuty, @Duties, @DateCounseled, @Counseler,
                     @PROF, @QUAL, @EO, @MIL, @PA, @TEAM, @LEAD, @MIS, @TAC,
-                    @RecommendA, @RecommendB, @Comments, @PromotionRecom
+                    @RecommendA, @RecommendB, @Comments, @PromotionRecom,
+                    @StatementYes, @StatementNo
                 )
             `);
             const result = reportStmt.run(data);
@@ -210,7 +212,8 @@ ipcMain.handle('save-fitrep', async (e, payload) => {
                     ReportingSenior=@ReportingSenior, RSGrade=@RSGrade, RSDesig=@RSDesig, RSTitle=@RSTitle, RSUIC=@RSUIC, RSSSN=@RSSSN, RSAddress=@RSAddress,
                     Achievements=@Achievements, PrimaryDuty=@PrimaryDuty, Duties=@Duties, DateCounseled=@DateCounseled, Counseler=@Counseler,
                     PROF=@PROF, QUAL=@QUAL, EO=@EO, MIL=@MIL, PA=@PA, TEAM=@TEAM, LEAD=@LEAD, MIS=@MIS, TAC=@TAC,
-                    RecommendA=@RecommendA, RecommendB=@RecommendB, Comments=@Comments, PromotionRecom=@PromotionRecom
+                    RecommendA=@RecommendA, RecommendB=@RecommendB, Comments=@Comments, PromotionRecom=@PromotionRecom,
+                    StatementYes=@StatementYes, StatementNo=@StatementNo
                 WHERE ReportID = @ReportID
             `);
             updateStmt.run(data);
@@ -226,7 +229,7 @@ ipcMain.handle('save-fitrep', async (e, payload) => {
 // Load all reports to display in the Homepage Table
 ipcMain.handle('loadFitreps', async (event, dbPath) => {
     try {
-        if (!fs.existsSync(dbPath)) return { error: "File not found" }; // Changed this line
+        if (!fs.existsSync(dbPath)) return { error: "File not found" };
         const db = new Database(dbPath, { readonly: true });
         const rows = db.prepare(`SELECT rowid as ReportID, FullName, Rate FROM [Reports] ORDER BY rowid DESC`).all();
         db.close();
@@ -241,14 +244,12 @@ ipcMain.handle('removeDatabase', async (event, dbPath) => {
         let list = getDatabasesList();
         const entry = list.find(db => db.path === dbPath);
 
-        // If entry doesn't exist or path is undefined/missing, just remove it from the list
         if (!entry || !entry.path) {
             list = list.filter(db => db.path !== dbPath);
             saveDatabasesList(list);
             return { success: true };
         }
 
-        // Block removal if SSNs are currently encrypted
         if (entry.ssnState === 'encrypted') {
             return { success: false, message: 'Cannot remove a database with encrypted SSNs. Please decrypt SSNs first.' };
         }
@@ -288,9 +289,6 @@ ipcMain.handle('deleteFitrep', async (e, { dbPath, reportId }) => {
     }
 });
 
-// Compute rater group summary from all reports in the database.
-// Returns the summary group average (average of all member trait averages)
-// and the count of each promotion recommendation category.
 ipcMain.handle('getRaterGroupSummary', async (e, dbPath) => {
     try {
         if (!dbPath || !fs.existsSync(dbPath)) {
@@ -298,7 +296,6 @@ ipcMain.handle('getRaterGroupSummary', async (e, dbPath) => {
         }
         const db = new Database(dbPath, { readonly: true });
 
-        // Pull trait columns for every report
         const rows = db.prepare(`
             SELECT PROF, QUAL, EO, MIL, TEAM, LEAD, MIS, TAC, PromotionRecom
             FROM [Reports]
@@ -312,12 +309,10 @@ ipcMain.handle('getRaterGroupSummary', async (e, dbPath) => {
             };
         }
 
-        // 1. Compute each report's member trait average, then average them all
         const memberAverages = [];
         const promoCounts = { sigProb: 0, prog: 0, promotable: 0, mustPromote: 0, earlyPromote: 0 };
 
         for (const row of rows) {
-            // Calculate individual member trait average
             const traits = [row.PROF, row.QUAL, row.EO, row.MIL, row.TEAM, row.LEAD, row.MIS, row.TAC];
             let sum = 0;
             let count = 0;
@@ -332,7 +327,6 @@ ipcMain.handle('getRaterGroupSummary', async (e, dbPath) => {
                 memberAverages.push(sum / count);
             }
 
-            // 2. Tally promotion recommendation counts
             const promo = parseInt(row.PromotionRecom);
             if (promo === 1) promoCounts.sigProb++;
             else if (promo === 2) promoCounts.prog++;
@@ -352,9 +346,6 @@ ipcMain.handle('getRaterGroupSummary', async (e, dbPath) => {
     }
 });
 
-// Export ACCDB (Java trigger)
-// Creates a clean temporary SQLite copy with NAVFIT98-compatible structure,
-// hands it to the Java converter, then cleans up the temp file.
 ipcMain.handle('export-accdb', async (e, dbPath) => {
     let tempDbPath = null;
     try {
@@ -362,7 +353,6 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
             throw new Error("No database found. Please open or create a database first.");
         }
 
-        // Block export if SSNs are encrypted
         if (isDbEncrypted(dbPath)) {
             return { success: false, error: 'SSNs are currently encrypted. Please decrypt SSNs before exporting to ACCDB.' };
         }
@@ -377,7 +367,6 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
 
         if (canceled || !filePath) return { success: false, error: "ACCDB Export cancelled." };
 
-        // 1. Read all reports from the user's working database
         const sourceDb = new Database(dbPath, { readonly: true });
         const reports = sourceDb.prepare("SELECT * FROM [Reports]").all();
         sourceDb.close();
@@ -386,23 +375,17 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
             throw new Error("No reports found in database. Save a report before exporting.");
         }
 
-        // 2. Create a clean temporary copy from the pristine template
         tempDbPath = path.join(INTERNAL_DATA_DIR, `accdb_staging_${Date.now()}.db`);
         fs.copyFileSync(SQLITE_TEMPLATE, tempDbPath);
 
         const tempDb = new Database(tempDbPath);
-
-        // 3. Wipe all data to prevent folder/report duplication (NAVFIT98 requirement)
         tempDb.exec("DELETE FROM [Reports]; DELETE FROM [Folders]; DELETE FROM [Summary];");
 
-        // 4. Create the "Root" container (FolderID 1)
-        // NAVFIT98 requires this as the anchor for the navigation tree
         tempDb.prepare(`
             INSERT INTO [Folders] (FolderName, FolderID, Parent, Active)
             VALUES (?, ?, ?, ?)
         `).run('Root', 1, 0, 1);
 
-        // 5. Re-insert each report with the exact schema NAVFIT98 expects
         const reportStmt = tempDb.prepare(`
             INSERT INTO [Reports] (
                 Parent, ReportType, FullName, FirstName, MI, LastName, Suffix,
@@ -427,12 +410,8 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
         `);
 
         for (const report of reports) {
-            // Normalize ReportType for legacy reports saved before this fix
             report.ReportType = 'FitRep';
 
-            // Sanitize integer columns — older saves may contain NaN or null
-            // from parseInt("NOB") which corrupts the ACCDB conversion.
-            // The ACCDB schema requires proper integers (I23) for these columns.
             const intCols = [
                 'PROF', 'QUAL', 'EO', 'MIL', 'PA', 'TEAM', 'LEAD', 'MIS', 'TAC',
                 'PromotionRecom', 'SummaryRank',
@@ -456,7 +435,6 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
 
         tempDb.close();
 
-        // 6. Hand the clean staging DB to the Java converter
         await runImportLogic(tempDbPath, filePath);
 
         console.log(`Successfully exported ACCDB to: ${filePath}`);
@@ -466,19 +444,15 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
         console.error("Export ACCDB Error:", err);
         return { success: false, error: err.message };
     } finally {
-        // 7. Clean up the temporary staging database
         if (tempDbPath && fs.existsSync(tempDbPath)) {
             try { fs.unlinkSync(tempDbPath); } catch (_) {}
         }
     }
 });
 
-// THE HELPER FUNCTION
-// THE HELPER FUNCTION - Updated to accept dbPath
 function generateDynamicName(dbPath, extension) {
     try {
         const db = new Database(dbPath, { readonly: true });
-        // Grab the most recently added report to use for the file name
         const report = db.prepare("SELECT FullName, FirstName, LastName, UIC FROM [Reports] ORDER BY rowid DESC LIMIT 1").get();
         db.close();
 
@@ -497,42 +471,35 @@ function generateDynamicName(dbPath, extension) {
         return `FITREP_${safeName}.${extension}`;
         
     } catch (err) {
-        return `Generated_FITREP.${extension}`; // Absolute foolproof fallback
+        return `Generated_FITREP.${extension}`;
     }
 }
 
-// Helper: check if a database has encrypted SSNs
 function isDbEncrypted(dbPath) {
     const list = getDatabasesList();
     const entry = list.find(d => d.path === dbPath);
     return entry && entry.ssnState === 'encrypted';
 }
 
-// 3. Generate PDF
+// Generate PDF
 ipcMain.handle('generate-report', async (e, reportData) => {
     try {
-        // Block export if SSNs are encrypted
         if (reportData && reportData.dbPath && isDbEncrypted(reportData.dbPath)) {
             return { success: false, error: 'SSNs are currently encrypted. Please decrypt SSNs before exporting to PDF.' };
         }
 
-        // Pre-calculate the default name to show in the prompt
         let dataModel = reportData ? new FitRepData(reportData) : FitRepData.mock();
         const safeName = (dataModel.FullName || "Draft_Report").replace(/[^a-z0-9]/gi, '_').toLowerCase();
         const defaultPdfName = `Report_${safeName}.pdf`;
 
-        // 1. Ask the user where to save
         const { canceled, filePath } = await dialog.showSaveDialog({
             title: 'Save PDF Report',
-            // Force it to the Desktop
             defaultPath: path.join(app.getPath('desktop'), defaultPdfName), 
             filters: [{ name: 'PDF Document', extensions: ['pdf'] }]
         });
 
-        // 2. Cancel if they close the window
         if (canceled || !filePath) return { success: false, error: "PDF Export cancelled." };
 
-        // 3. Pass the explicitly chosen filePath to your logic
         const outPath = await runReportLogic(reportData, filePath);
         return { success: true, path: outPath };
     } catch (err) { 
@@ -541,7 +508,7 @@ ipcMain.handle('generate-report', async (e, reportData) => {
     }
 });
 
-// --- NEW: HOMEPAGE FILE MANAGEMENT HANDLERS ---
+// --- HOMEPAGE FILE MANAGEMENT HANDLERS ---
 
 ipcMain.handle('getDatabases', async () => {
     return getDatabasesList();
@@ -574,7 +541,6 @@ function encryptSSN(plaintext, key) {
     let encrypted = cipher.update(plaintext, 'utf8', 'base64');
     encrypted += cipher.final('base64');
     const authTag = cipher.getAuthTag();
-    // Format: ENC:<iv>:<authTag>:<ciphertext>
     return `ENC:${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`;
 }
 
@@ -599,13 +565,18 @@ ipcMain.handle('encryptSSNs', async (event, { dbPath, password }) => {
         if (!entry) return { success: false, error: 'Database not found in list' };
         if (entry.ssnState === 'encrypted') return { success: false, error: 'SSNs are already encrypted' };
 
-        // Reuse existing salt if password was set before, otherwise generate new
+        const checkDb = new Database(dbPath, { readonly: true });
+        const reportCount = checkDb.prepare('SELECT COUNT(*) as count FROM [Reports]').get();
+        checkDb.close();
+        if (!reportCount || reportCount.count === 0) {
+            return { success: false, error: 'Cannot encrypt SSNs until at least one report has been created.' };
+        }
+
         const salt = entry.ssnSalt
             ? Buffer.from(entry.ssnSalt, 'base64')
             : crypto.randomBytes(SSN_SALT_LENGTH);
         const key = deriveKey(password, salt);
 
-        // If re-encrypting (salt and verify token already exist), validate the password first
         if (entry.ssnSalt && entry.ssnVerifyToken) {
             try {
                 const testResult = decryptSSN(entry.ssnVerifyToken, key);
@@ -617,11 +588,8 @@ ipcMain.handle('encryptSSNs', async (event, { dbPath, password }) => {
             }
         }
 
-        // Create a verification token so we can validate password on decrypt
-        // even if all SSN fields are empty
         const verifyToken = encryptSSN('NAVFIT26_VERIFY', key);
 
-        // Open the database and encrypt all SSN and RSSSN values
         const db = new Database(dbPath);
         const rows = db.prepare('SELECT rowid, SSN, RSSSN FROM [Reports]').all();
         const updateStmt = db.prepare('UPDATE [Reports] SET SSN = ?, RSSSN = ? WHERE rowid = ?');
@@ -636,11 +604,10 @@ ipcMain.handle('encryptSSNs', async (event, { dbPath, password }) => {
         txn();
         db.close();
 
-        // Store salt, verify token, and state (NOT the password or key)
         entry.ssnState = 'encrypted';
         entry.ssnSalt = salt.toString('base64');
         entry.ssnVerifyToken = verifyToken;
-        entry.ssnPassword = null; // Never store the password
+        entry.ssnPassword = null;
         saveDatabasesList(list);
 
         return { success: true, recordsUpdated: rows.length };
@@ -658,11 +625,9 @@ ipcMain.handle('decryptSSNs', async (event, { dbPath, password }) => {
         if (entry.ssnState !== 'encrypted') return { success: false, error: 'SSNs are not encrypted' };
         if (!entry.ssnSalt) return { success: false, error: 'No encryption salt found — cannot decrypt' };
 
-        // Re-derive the key from the password and stored salt
         const salt = Buffer.from(entry.ssnSalt, 'base64');
         const key = deriveKey(password, salt);
 
-        // Pre-validate password using stored verification token before touching the database
         if (entry.ssnVerifyToken) {
             try {
                 const testResult = decryptSSN(entry.ssnVerifyToken, key);
@@ -673,8 +638,6 @@ ipcMain.handle('decryptSSNs', async (event, { dbPath, password }) => {
                 return { success: false, error: 'Incorrect password' };
             }
         } else {
-            // Legacy fallback: no verify token stored (encrypted before this feature).
-            // Find one encrypted SSN to test the password against.
             const testDb = new Database(dbPath, { readonly: true });
             const testRow = testDb.prepare(
                 "SELECT SSN, RSSSN FROM [Reports] WHERE SSN LIKE 'ENC:%' OR RSSSN LIKE 'ENC:%' LIMIT 1"
@@ -688,10 +651,8 @@ ipcMain.handle('decryptSSNs', async (event, { dbPath, password }) => {
                     return { success: false, error: 'Incorrect password' };
                 }
             }
-            // If no encrypted rows exist, no data to protect — allow state reset
         }
 
-        // Open the database and decrypt all SSN and RSSSN values
         const db = new Database(dbPath);
         const rows = db.prepare('SELECT rowid, SSN, RSSSN FROM [Reports]').all();
         const updateStmt = db.prepare('UPDATE [Reports] SET SSN = ?, RSSSN = ? WHERE rowid = ?');
@@ -706,13 +667,11 @@ ipcMain.handle('decryptSSNs', async (event, { dbPath, password }) => {
         txn();
         db.close();
 
-        // Update state, keep salt so password persists across cycles
         entry.ssnState = 'decrypted';
         saveDatabasesList(list);
 
         return { success: true, recordsUpdated: rows.length };
     } catch (err) {
-        // If decryption fails (wrong password), the authTag check will throw
         if (err.message.includes('Unsupported state') || err.message.includes('unable to authenticate')) {
             return { success: false, error: 'Incorrect password' };
         }
@@ -720,7 +679,6 @@ ipcMain.handle('decryptSSNs', async (event, { dbPath, password }) => {
         return { success: false, error: err.message };
     }
 });
-
 
 ipcMain.handle('uploadDatabase', async () => {
     const result = await dialog.showOpenDialog({
@@ -741,19 +699,16 @@ ipcMain.handle('uploadDatabase', async () => {
     try {
         let dbPath = filePath;
 
-        // If the user selected an ACCDB, convert it to SQLite first
         if (ext === '.accdb') {
             const baseName = path.basename(filePath, '.accdb');
             const outputDir = path.dirname(filePath);
             dbPath = path.join(outputDir, `${baseName}.db`);
-
             await runExportLogic(filePath, dbPath);
         }
 
         const name = path.basename(dbPath);
         const list = getDatabasesList();
 
-        // Prevent duplicate entries in the tracking list
         if (!list.find(d => d.path === dbPath)) {
             list.push({ name, path: dbPath, ssnState: 'decrypted', ssnPassword: null });
             saveDatabasesList(list);
@@ -776,10 +731,8 @@ ipcMain.handle('createDatabase', async () => {
     if (canceled || !filePath) return { success: false };
 
     try {
-        // 1. Copy the pristine template
         fs.copyFileSync(SQLITE_TEMPLATE, filePath);
         
-        // 2. ROOT FOLDER FAIL-SAFE: Ensure FolderID 1 exists for NAVFIT98
         const db = new Database(filePath);
         const rootFolder = db.prepare("SELECT * FROM [Folders] WHERE FolderID = 1").get();
         if (!rootFolder) {
@@ -788,13 +741,9 @@ ipcMain.handle('createDatabase', async () => {
                 VALUES (?, ?, ?, ?)
             `).run('Root', 1, 0, 1);
         }
-
-        // 3. Clear any pre-filled sample data so the database starts empty
         db.prepare("DELETE FROM [Reports]").run();
-
         db.close();
         
-        // 3. Save to tracked list
         const name = path.basename(filePath);
         const list = getDatabasesList();
         list.push({ name, path: filePath, ssnState: 'decrypted', ssnPassword: null });
@@ -822,10 +771,8 @@ function createWindow() {
 
     createApplicationMenu(mainWindow);
 
-    // 1. Resolve the path absolutely
     const frontendPath = path.resolve(__dirname, 'frontend_build', 'index.html');
 
-    // 2. Debug check: Log to terminal so you can see where it's looking
     if (!fs.existsSync(frontendPath)) {
         console.error(`ERROR: Cannot find frontend build at: ${frontendPath}`);
         console.log("Did you run 'npm run build' in your React folder and move it here?");
@@ -835,6 +782,7 @@ function createWindow() {
         console.error("Failed to load file:", err);
     });
 }
+
 function createApplicationMenu(mainWindow) {
     const template = [
         {
@@ -844,7 +792,6 @@ function createApplicationMenu(mainWindow) {
                     label: 'Return to Database',
                     accelerator: 'CmdOrCtrl+D',
                     click: () => {
-                        // This sends a signal to your React App
                         mainWindow.webContents.send('menu-navigate-home');
                     }
                 },
