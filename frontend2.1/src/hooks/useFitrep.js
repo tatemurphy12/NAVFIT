@@ -12,7 +12,7 @@ export default function useFitrep(dbPath) {
         proExpert: '', cmeo: '', bearing: '', teamwork: '',
         missAccomp: '', leadership: '', tactPerform: '',
         milestoneOne: '', milestoneTwo: '', comments: '',
-        promotion: '', sumPromo: '', seniorAddress: '', statement: '',
+        promotion: '', sumPromo: '', seniorAddress: '', statementOption: '',
     };
     
     const [formData, setFormData] = useState(initialFormState);
@@ -196,7 +196,9 @@ export default function useFitrep(dbPath) {
             SummaryProm: formData.sumPromo?.promotable || "",
             SummaryMP: formData.sumPromo?.mustPromote || "",
             SummaryEP: formData.sumPromo?.earlyPromote || "",
-            PromotionRecom: promoRecToInt(formData.promotion)
+            PromotionRecom: promoRecToInt(formData.promotion),
+            StatementYes: formData.statementOption === 'submitted' ? 1 : 0,
+            StatementNo: formData.statementOption === 'none' ? 1 : 0,
         };
     
         try {
@@ -298,6 +300,8 @@ export default function useFitrep(dbPath) {
             SummaryMP: formData.sumPromo?.mustPromote || "",
             SummaryEP: formData.sumPromo?.earlyPromote || "",
             RSCA: raterGroupSummary?.summaryGroupAverage || "",
+            StatementYes: formData.statementOption === 'submitted' ? 1 : 0,
+            StatementNo: formData.statementOption === 'none' ? 1 : 0,
         };
         const result = await window.api.exportPDF(exportData);
         if (result.success) {

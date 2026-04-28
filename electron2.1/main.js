@@ -199,7 +199,8 @@ ipcMain.handle('save-fitrep', async (e, payload) => {
                     ReportingSenior, RSGrade, RSDesig, RSTitle, RSUIC, RSSSN, RSAddress,
                     Achievements, PrimaryDuty, Duties, DateCounseled, Counseler,
                     PROF, QUAL, EO, MIL, PA, TEAM, LEAD, MIS, TAC,
-                    RecommendA, RecommendB, Comments, PromotionRecom
+                    RecommendA, RecommendB, Comments, PromotionRecom,
+                    StatementYes, StatementNo
                 ) VALUES (
                     'a 1', @ReportType, @FullName, @FirstName, @MI, @LastName, @Suffix,
                     @Rate, @Desig, @SSN, @Active, @TAR, @Inactive, @ATADSW, @UIC, @ShipStation,
@@ -208,7 +209,8 @@ ipcMain.handle('save-fitrep', async (e, payload) => {
                     @ReportingSenior, @RSGrade, @RSDesig, @RSTitle, @RSUIC, @RSSSN, @RSAddress,
                     @Achievements, @PrimaryDuty, @Duties, @DateCounseled, @Counseler,
                     @PROF, @QUAL, @EO, @MIL, @PA, @TEAM, @LEAD, @MIS, @TAC,
-                    @RecommendA, @RecommendB, @Comments, @PromotionRecom
+                    @RecommendA, @RecommendB, @Comments, @PromotionRecom,
+                    @StatementYes, @StatementNo
                 )
             `);
             const result = reportStmt.run(data);
@@ -226,7 +228,8 @@ ipcMain.handle('save-fitrep', async (e, payload) => {
                     ReportingSenior=@ReportingSenior, RSGrade=@RSGrade, RSDesig=@RSDesig, RSTitle=@RSTitle, RSUIC=@RSUIC, RSSSN=@RSSSN, RSAddress=@RSAddress,
                     Achievements=@Achievements, PrimaryDuty=@PrimaryDuty, Duties=@Duties, DateCounseled=@DateCounseled, Counseler=@Counseler,
                     PROF=@PROF, QUAL=@QUAL, EO=@EO, MIL=@MIL, PA=@PA, TEAM=@TEAM, LEAD=@LEAD, MIS=@MIS, TAC=@TAC,
-                    RecommendA=@RecommendA, RecommendB=@RecommendB, Comments=@Comments, PromotionRecom=@PromotionRecom
+                    RecommendA=@RecommendA, RecommendB=@RecommendB, Comments=@Comments, PromotionRecom=@PromotionRecom,
+                    StatementYes=@StatementYes, StatementNo=@StatementNo
                 WHERE ReportID = @ReportID
             `);
             updateStmt.run(data);
@@ -415,7 +418,8 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
                 ReportingSenior, RSGrade, RSDesig, RSTitle, RSUIC, RSSSN, RSAddress,
                 Achievements, PrimaryDuty, Duties, DateCounseled, Counseler,
                 PROF, QUAL, EO, MIL, PA, TEAM, LEAD, MIS, TAC,
-                RecommendA, RecommendB, Comments, PromotionRecom
+                RecommendA, RecommendB, Comments, PromotionRecom,
+                StatementYes, StatementNo
             ) VALUES (
                 'a 1',
                 @ReportType, @FullName, @FirstName, @MI, @LastName, @Suffix,
@@ -425,7 +429,8 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
                 @ReportingSenior, @RSGrade, @RSDesig, @RSTitle, @RSUIC, @RSSSN, @RSAddress,
                 @Achievements, @PrimaryDuty, @Duties, @DateCounseled, @Counseler,
                 @PROF, @QUAL, @EO, @MIL, @PA, @TEAM, @LEAD, @MIS, @TAC,
-                @RecommendA, @RecommendB, @Comments, @PromotionRecom
+                @RecommendA, @RecommendB, @Comments, @PromotionRecom,
+                @StatementYes, @StatementNo
             )
         `);
 

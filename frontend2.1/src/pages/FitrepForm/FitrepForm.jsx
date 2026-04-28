@@ -187,6 +187,7 @@ export default function FitrepForm() {
             reportType: data.Regular ? 'Regular' : data.Concurrent ? 'Concurrent' : data.OpsCdr ? 'Ops Cdr' : data.ReportType || '',
             billetSub: data.BilletSubcat || '',
             physicalRead: data.PhysicalReadiness || '',
+            statementOption: data.StatementYes ? 'submitted' : data.StatementNo ? 'none' : '',
         }));
     };
 
