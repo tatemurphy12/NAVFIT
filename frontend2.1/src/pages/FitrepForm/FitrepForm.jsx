@@ -145,6 +145,24 @@ export default function FitrepForm() {
         return '';
     };
 
+    // Converts any date format from the DB (Unix ms integer, ISO string, or Navy string) to Navy format (YYMMM DD)
+    const MONTHS_NAVY = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+    const rawToNavy = (val) => {
+        if (!val) return '';
+        const n = Number(val);
+        // Unix millisecond timestamp (Java ACCDB→SQLite export stores dates this way)
+        if (!isNaN(n) && n > 86400000) {
+            const d = new Date(n);
+            return `${String(d.getFullYear()).slice(-2)}${MONTHS_NAVY[d.getMonth()]}${String(d.getDate()).padStart(2,'0')}`;
+        }
+        const s = String(val);
+        // Full ISO timestamp "YYYY-MM-DD..." or date-only "YYYY-MM-DD"
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m) return `${m[1].slice(-2)}${MONTHS_NAVY[parseInt(m[2],10)-1]}${m[3]}`;
+        // Navy string "YYMMM DD" or special codes ("NOT REQ" etc.) — pass through
+        return s;
+    };
+
     const populateForm = (data) => {
         setFormData(prev => ({
             ...prev,
@@ -155,9 +173,9 @@ export default function FitrepForm() {
             uic: data.UIC || '',
             station: data.ShipStation || '',
             promo: data.PromotionStatus || '',
-            dateRep: data.DateReported || '',
-            fromPeriod: data.FromDate || '',
-            toPeriod: data.ToDate || '',
+            dateRep: rawToNavy(data.DateReported),
+            fromPeriod: rawToNavy(data.FromDate),
+            toPeriod: rawToNavy(data.ToDate),
             reportSenior: data.ReportingSenior || '',
             reportGrade: data.RSGrade || '',
             reportDesig: data.RSDesig || '',
@@ -168,7 +186,7 @@ export default function FitrepForm() {
             cmdEmployAch: data.Achievements || '',
             primaryDuty: data.PrimaryDuty || '',
             duties: data.Duties || '',
-            dateCounseled: data.DateCounseled || '',
+            dateCounseled: rawToNavy(data.DateCounseled),
             counselor: data.Counseler || '',
             proExpert: traitToRadio(data.PROF),
             cmeo: traitToRadio(data.EO),
