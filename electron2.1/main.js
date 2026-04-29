@@ -438,6 +438,12 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
             // Normalize ReportType for legacy reports saved before this fix
             report.ReportType = 'FitRep';
 
+            // Convert DATETIME columns from Navy format ("26MAR04") to ISO ("2026-03-04").
+            // Java's JDBC parser cannot parse Navy strings and silently drops the entire record.
+            for (const col of ['DateReported', 'FromDate', 'ToDate']) {
+                report[col] = navyToISO(report[col]);
+            }
+
             // Sanitize integer columns — older saves may contain NaN or null
             // from parseInt("NOB") which corrupts the ACCDB conversion.
             // The ACCDB schema requires proper integers (I23) for these columns.
@@ -481,7 +487,26 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
     }
 });
 
-// THE HELPER FUNCTION
+// Convert Navy date format ("26MAR04") to ISO ("2026-03-04") for Java/ACCDB compatibility.
+// Java's JDBC date parser rejects Navy strings, causing the entire record to be silently dropped.
+function navyToISO(val) {
+    if (!val) return null;
+    const s = String(val).trim();
+    if (!s) return null;
+    // Already ISO: "YYYY-MM-DD"
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+    // Navy format: "YYMMM DD" e.g., "26MAR04"
+    const months = { JAN:'01', FEB:'02', MAR:'03', APR:'04', MAY:'05', JUN:'06',
+                     JUL:'07', AUG:'08', SEP:'09', OCT:'10', NOV:'11', DEC:'12' };
+    if (s.length >= 7) {
+        const year  = '20' + s.substring(0, 2);
+        const month = months[s.substring(2, 5).toUpperCase()];
+        const day   = s.substring(5, 7);
+        if (month) return `${year}-${month}-${day}`;
+    }
+    return null;
+}
+
 // THE HELPER FUNCTION - Updated to accept dbPath
 function generateDynamicName(dbPath, extension) {
     try {
