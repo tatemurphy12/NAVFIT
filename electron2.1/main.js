@@ -487,14 +487,18 @@ ipcMain.handle('export-accdb', async (e, dbPath) => {
     }
 });
 
-// Convert Navy date format ("26MAR04") to ISO ("2026-03-04") for Java/ACCDB compatibility.
-// Java's JDBC date parser rejects Navy strings, causing the entire record to be silently dropped.
+// Convert Navy date format ("26MAR04") to SQLite full-timestamp format required by Java's JDBC driver.
+// The SQLite JDBC driver (org.sqlite.jdbc3) calls getTimestamp() which requires "YYYY-MM-DD HH:MM:SS.sss".
+// Date-only strings ("YYYY-MM-DD") and Navy strings ("26MAR04") both cause "Error parsing time stamp",
+// which silently drops the entire record during the SQLite→ACCDB Java conversion.
 function navyToISO(val) {
     if (!val) return null;
     const s = String(val).trim();
     if (!s) return null;
-    // Already ISO: "YYYY-MM-DD"
-    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+    // Already a full timestamp: "YYYY-MM-DD HH:MM:SS..."
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(s)) return s;
+    // Date-only ISO: "YYYY-MM-DD" — append time component
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s + ' 00:00:00.000';
     // Navy format: "YYMMM DD" e.g., "26MAR04"
     const months = { JAN:'01', FEB:'02', MAR:'03', APR:'04', MAY:'05', JUN:'06',
                      JUL:'07', AUG:'08', SEP:'09', OCT:'10', NOV:'11', DEC:'12' };
@@ -502,7 +506,7 @@ function navyToISO(val) {
         const year  = '20' + s.substring(0, 2);
         const month = months[s.substring(2, 5).toUpperCase()];
         const day   = s.substring(5, 7);
-        if (month) return `${year}-${month}-${day}`;
+        if (month) return `${year}-${month}-${day} 00:00:00.000`;
     }
     return null;
 }
