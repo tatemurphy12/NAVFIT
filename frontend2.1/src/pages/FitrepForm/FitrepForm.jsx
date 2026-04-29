@@ -145,6 +145,18 @@ export default function FitrepForm() {
         return '';
     };
 
+    // Ensures SSN is displayed as XXX-XX-XXXX regardless of how it was stored
+    const formatSSN = (val) => {
+        if (!val) return '';
+        const s = String(val);
+        if (s.startsWith('ENC:')) return s;
+        const digits = s.replace(/-/g, '');
+        if (digits.length === 9 && /^\d{9}$/.test(digits)) {
+            return `${digits.slice(0,3)}-${digits.slice(3,5)}-${digits.slice(5)}`;
+        }
+        return s;
+    };
+
     // Converts any date format from the DB (Unix ms integer, ISO string, or Navy string) to Navy format (YYMMM DD)
     const MONTHS_NAVY = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
     const rawToNavy = (val) => {
@@ -169,7 +181,7 @@ export default function FitrepForm() {
             name: data.FullName || '',
             grade: data.Rate || '',
             desig: data.Desig || '',
-            ssn: data.SSN || '',
+            ssn: formatSSN(data.SSN),
             uic: data.UIC || '',
             station: data.ShipStation || '',
             promo: data.PromotionStatus || '',
@@ -181,7 +193,7 @@ export default function FitrepForm() {
             reportDesig: data.RSDesig || '',
             reportTitle: data.RSTitle || '',
             reportUIC: data.RSUIC || '',
-            reportSSN: data.RSSSN || '',
+            reportSSN: formatSSN(data.RSSSN),
             seniorAddress: data.RSAddress || '',
             cmdEmployAch: data.Achievements || '',
             primaryDuty: data.PrimaryDuty || '',
